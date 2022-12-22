@@ -5,7 +5,7 @@ create table Peers (
 
 create table Tasks (
     Title varchar primary key UNIQUE DEFAULT NULL,
-    ParentTask varchar DEFAULT NULL, constraint fk_Tasks_Checks foreign key (ParentTask) references Checks(Task),
+    ParentTask varchar DEFAULT NULL, constraint fk_Tasks_Checks foreign key (ParentTask) references Tasks(Title),
     MaxXP integer not null
 );
 
