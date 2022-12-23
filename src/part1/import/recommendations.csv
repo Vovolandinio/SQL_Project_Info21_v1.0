@@ -1,0 +1,14 @@
+id,peer,recommendedpeer
+1,Diluc,Bennett
+2,Bennett,Diluc
+3,Bennett,Dori
+4,Dori,Keqing
+5,Keqing,Diluc
+6,Zhongli,Klee
+7,Diluc,Raiden
+8,Klee,Diluc
+9,Diluc,Klee
+10,Klee,Zhongli
+11,Dori,Bennett
+12,Keqing,Dori
+13,Raiden,Diluc

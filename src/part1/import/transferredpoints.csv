@@ -1,0 +1,14 @@
+id,checkingpeer,checkedpeer,pointsamount
+1,Bennett,Diluc,2
+2,Diluc,Bennett,1
+3,Dori,Bennett,1
+4,Keqing,Dori,1
+5,Diluc,Keqing,1
+6,Klee,Zhongli,1
+7,Raiden,Diluc,2
+8,Diluc,Klee,1
+9,Klee,Diluc,1
+10,Zhongli,Klee,1
+11,Bennett,Dori,1
+12,Dori,Keqing,1
+13,Diluc,Raiden,2
