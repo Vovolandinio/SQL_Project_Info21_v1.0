@@ -103,7 +103,7 @@ $$ LANGUAGE plpgsql;
 BEGIN;
 CALL pr_success_percent('cursor_name');
 FETCH ALL IN "cursor_name";
-COMMIT;
+END;
 
 -- 5) Посчитать изменение в количестве пир поинтов каждого пира по таблице TransferredPoints
 -- Результат вывести отсортированным по изменению числа поинтов.
@@ -139,8 +139,7 @@ $$ LANGUAGE plpgsql;
 BEGIN;
 CALL pr_points_change('cursor_name');
 FETCH ALL IN "cursor_name";
-COMMIT;
-
+END;
 
 -- 6) Посчитать изменение в количестве пир поинтов каждого пира по таблице, возвращаемой первой функцией из Part 3
 -- Результат вывести отсортированным по изменению числа поинтов.
@@ -174,7 +173,7 @@ $$ LANGUAGE plpgsql;
 BEGIN;
 CALL pr_transferred_points('cursor_name');
 FETCH ALL IN "cursor_name";
-COMMIT;
+END;
 
 -- 7) Определить самое часто проверяемое задание за каждый день
 -- При одинаковом количестве проверок каких-то заданий в определенный день, вывести их все.
@@ -210,14 +209,15 @@ $$ LANGUAGE plpgsql;
 BEGIN;
 CALL pr_max_task_check('cursor_name');
 FETCH ALL IN "cursor_name";
-COMMIT;
+END;
 
 -- 8) Определить длительность последней P2P проверки
 -- Под длительностью подразумевается разница между временем, указанным в записи со статусом "начало", и временем, указанным в записи со статусом "успех" или "неуспех".
 -- Формат вывода: длительность проверки
 
+-- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_check_duration;
-
+-- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_check_duration(IN ref refcursor)
 AS $$
     DECLARE
@@ -239,13 +239,108 @@ AS $$
 END;
 $$ LANGUAGE plpgsql;
 
+-- Тестовая транзакция.
 BEGIN;
-    CALL pr_check_duration('cursor_name');
-    FETCH ALL IN "cursor_name";
-COMMIT;
+CALL pr_check_duration('cursor_name');
+FETCH ALL IN "cursor_name";
+END;
 
 
 -- 9) Найти всех пиров, выполнивших весь заданный блок задач и дату завершения последнего задания
 -- Параметры процедуры: название блока, например "CPP".
 -- Результат вывести отсортированным по дате завершения.
 -- Формат вывода: ник пира, дата завершения блока (т.е. последнего выполненного задания из этого блока)
+
+
+
+
+-- 10) Определить, к какому пиру стоит идти на проверку каждому обучающемуся
+-- Определять нужно исходя из рекомендаций друзей пира, т.е. нужно найти пира, проверяться у которого рекомендует наибольшее число друзей.
+-- Формат вывода: ник пира, ник найденного проверяющего
+
+
+DROP PROCEDURE IF EXISTS pr_recommendation_peer;
+
+CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN ref refcursor)
+AS $$
+BEGIN
+    WITH w_tmp1 AS
+        (SELECT
+             peers.nickname as peer,
+             friends.peer2 as friend,
+             r.recommendedpeer as recommendedpeer
+    FROM peers
+    INNER JOIN friends ON peers.nickname = friends.peer1
+    INNER JOIN recommendations r ON friends.peer2 = r.peer AND peers.nickname != r.recommendedpeer
+    ORDER BY 1,2),
+    w_tmp2 AS (
+    SELECT peer,
+           recommendedpeer,
+           count(recommendedpeer) AS count_of_recommends
+    FROM w_tmp1
+    GROUP BY 1,2
+    ORDER BY 1,2),
+    w_tmp3 AS (
+    SELECT peer,
+           recommendedpeer,
+           count_of_recommends,
+           ROW_NUMBER() OVER (PARTITION BY peer ORDER BY count_of_recommends DESC) AS num_of_row_for_each_peer
+    FROM w_tmp2)
+
+    SELECT peer,
+           recommendedpeer
+    FROM w_tmp3
+    WHERE num_of_row_for_each_peer = 1;
+END;
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+CALL pr_recommendation_peer('cursor_name');
+FETCH ALL FROM "cursor_name";
+END;
+
+
+-- 11) Определить процент пиров, которые:
+--
+-- Приступили только к блоку 1
+-- Приступили только к блоку 2
+-- Приступили к обоим
+-- Не приступили ни к одному
+--
+-- Пир считается приступившим к блоку, если он проходил хоть одну проверку любого задания из этого блока (по таблице Checks)
+-- Параметры процедуры: название блока 1, например SQL, название блока 2, например A.
+-- Формат вывода: процент приступивших только к первом
+
+
+
+
+
+
+
+
+
+-- 12) Определить N пиров с наибольшим числом друзей
+-- Параметры процедуры: количество пиров N.
+-- Результат вывести отсортированным по кол-ву друзей.
+-- Формат вывода: ник пира, количество друзей
+DROP PROCEDURE IF EXISTS count_friends;
+
+CREATE OR REPLACE PROCEDURE count_friends(IN ref refcursor,IN limits int)
+AS $$
+    BEGIN
+        OPEN ref FOR
+SELECT
+    peer1 AS peer,
+    count(peer2) AS "FriendsCount"
+FROM friends
+GROUP BY peer
+ORDER BY "FriendsCount" DESC
+LIMIT limits;
+    END;
+    $$ LANGUAGE plpgsql;
+
+
+BEGIN;
+CALL count_friends('cursor_name',3);
+FETCH ALL FROM "cursor_name";
+END;
