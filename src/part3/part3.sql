@@ -64,7 +64,7 @@ SELECT * FROM fnc_check_date('2022-06-09');
 -- Формат вывода: процент успешных, процент неуспешных
 
 -- Удаление процедуры.
-DROP PROCEDURE IF EXISTS pr_success_percent;
+DROP PROCEDURE IF EXISTS pr_success_percent(result_data refcursor);
 -- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_success_percent(result_data refcursor)
 AS $$
@@ -101,8 +101,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-    CALL pr_success_percent('cursor_name');
-    FETCH ALL IN "cursor_name";
+CALL pr_success_percent('cursor_name');
+FETCH ALL IN "cursor_name";
 COMMIT;
 
 -- 5) Посчитать изменение в количестве пир поинтов каждого пира по таблице TransferredPoints
@@ -110,9 +110,9 @@ COMMIT;
 -- Формат вывода: ник пира, изменение в количество пир поинтов
 
 -- Удаление процедуры.
-DROP PROCEDURE IF EXISTS pr_points_change;
+DROP PROCEDURE IF EXISTS pr_points_change(result_data refcursor);
 -- Создание процедуры.
-CREATE OR REPLACE PROCEDURE pr_points_change (result_data refcursor)
+CREATE OR REPLACE PROCEDURE pr_points_change(result_data refcursor)
 AS $$ BEGIN
     OPEN result_data FOR
 SELECT
@@ -137,8 +137,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-    CALL pr_points_change('cursor_name');
-    FETCH ALL IN "cursor_name";
+CALL pr_points_change('cursor_name');
+FETCH ALL IN "cursor_name";
 COMMIT;
 
 
@@ -147,7 +147,7 @@ COMMIT;
 -- Формат вывода: ник пира, изменение в количество пир поинтов
 
 -- Удаление процедуры.
-DROP procedure IF EXISTS pr_transferred_points;
+DROP procedure IF EXISTS pr_transferred_points(result_data refcursor);
 -- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_transferred_points(result_data refcursor)
 AS $$
@@ -172,8 +172,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-    CALL pr_transferred_points('cursor_name');
-    FETCH ALL IN "cursor_name";
+CALL pr_transferred_points('cursor_name');
+FETCH ALL IN "cursor_name";
 COMMIT;
 
 -- 7) Определить самое часто проверяемое задание за каждый день
@@ -181,7 +181,7 @@ COMMIT;
 -- Формат вывода: день, название задания
 
 -- Удаление процедуры.
-DROP PROCEDURE IF EXISTS pr_max_task_check;
+DROP PROCEDURE IF EXISTS pr_max_task_check(result_data refcursor);
 -- Создание процедуры.
 create or replace procedure pr_max_task_check(result_data refcursor)
 AS $$
@@ -208,10 +208,44 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-    CALL pr_max_task_check('cursor_name');
-    FETCH ALL IN "cursor_name";
+CALL pr_max_task_check('cursor_name');
+FETCH ALL IN "cursor_name";
 COMMIT;
 
 -- 8) Определить длительность последней P2P проверки
 -- Под длительностью подразумевается разница между временем, указанным в записи со статусом "начало", и временем, указанным в записи со статусом "успех" или "неуспех".
 -- Формат вывода: длительность проверки
+
+DROP PROCEDURE IF EXISTS pr_check_duration;
+
+CREATE OR REPLACE PROCEDURE pr_check_duration(IN ref refcursor)
+AS $$
+    DECLARE
+        starts_check time := (SELECT
+                                   "Time"
+                               FROM p2p
+                               WHERE state != 'Start'
+                               AND "Check" = (SELECT max("Check")  FROM p2p)
+                               LIMIT 1);
+        end_check time := (SELECT
+                                   "Time"
+                               FROM p2p
+                               WHERE state = 'Start'
+                               AND "Check" = (SELECT max("Check")  FROM p2p)
+                               LIMIT 1);
+    BEGIN
+        OPEN ref FOR
+        SELECT starts_check - end_check AS Duration;
+END;
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+    CALL pr_check_duration('cursor_name');
+    FETCH ALL IN "cursor_name";
+COMMIT;
+
+
+-- 9) Найти всех пиров, выполнивших весь заданный блок задач и дату завершения последнего задания
+-- Параметры процедуры: название блока, например "CPP".
+-- Результат вывести отсортированным по дате завершения.
+-- Формат вывода: ник пира, дата завершения блока (т.е. последнего выполненного задания из этого блока)
