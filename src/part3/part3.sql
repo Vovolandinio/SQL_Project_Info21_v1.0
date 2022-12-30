@@ -221,6 +221,20 @@ DROP PROCEDURE IF EXISTS pr_check_duration;
 CREATE OR REPLACE PROCEDURE pr_check_duration(IN ref refcursor)
 AS $$
     DECLARE
+        id_check_start int := (SELECT
+                             "Check"
+                         FROM p2p
+                         WHERE state != 'Start'
+                           AND "Check" = (SELECT max("Check")  FROM p2p)
+                         LIMIT 1
+            );
+        id_check_end int := (SELECT
+                                 "Check"
+                             FROM p2p
+                             WHERE state = 'Start'
+                               AND "Check" = (SELECT max("Check") FROM p2p)
+                             LIMIT 1
+                             );
         starts_check time := (SELECT
                                    "Time"
                                FROM p2p
@@ -234,8 +248,13 @@ AS $$
                                AND "Check" = (SELECT max("Check")  FROM p2p)
                                LIMIT 1);
     BEGIN
+        IF id_check_end = id_check_start
+        THEN
         OPEN ref FOR
-        SELECT starts_check - end_check AS Duration;
+        SELECT starts_check - end_check AS "Duration";
+        ELSE
+            RAISE NOTICE ' P2P check is not completed ';
+            END IF;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -323,9 +342,12 @@ END;
 -- Параметры процедуры: количество пиров N.
 -- Результат вывести отсортированным по кол-ву друзей.
 -- Формат вывода: ник пира, количество друзей
-DROP PROCEDURE IF EXISTS count_friends;
 
-CREATE OR REPLACE PROCEDURE count_friends(IN ref refcursor,IN limits int)
+-- Удаление процедуры.
+DROP PROCEDURE IF EXISTS pr_count_friends;
+
+-- Создание процедуры.
+CREATE OR REPLACE PROCEDURE pr_count_friends(IN ref refcursor,IN limits int)
 AS $$
     BEGIN
         OPEN ref FOR
@@ -339,8 +361,209 @@ LIMIT limits;
     END;
     $$ LANGUAGE plpgsql;
 
-
+-- Тестовая транзакция.
 BEGIN;
-CALL count_friends('cursor_name',3);
+CALL pr_count_friends('cursor_name',3);
 FETCH ALL FROM "cursor_name";
+END;
+
+
+-- 13) Определить процент пиров, которые когда-либо успешно проходили проверку в свой день рождения
+-- Также определите процент пиров, которые хоть раз проваливали проверку в свой день рождения.
+-- Формат вывода: процент успехов в день рождения, процент неуспехов в день рождения
+
+
+
+
+-- 14) Определить кол-во XP, полученное в сумме каждым пиром
+-- Если одна задача выполнена несколько раз, полученное за нее кол-во XP равно максимальному за эту задачу.
+-- Результат вывести отсортированным по кол-ву XP.
+-- Формат вывода: ник пира, количество XP
+
+-- Удаление процедуры.
+DROP PROCEDURE IF EXISTS pr_peer_xp_sum(ref refcursor);
+
+-- Создание процедуры.
+CREATE OR REPLACE PROCEDURE pr_peer_xp_sum(IN ref refcursor)
+AS $$
+    BEGIN
+    OPEN ref FOR
+        SELECT peer,
+               SUM(xpamount) AS "XP" FROM (
+            SELECT peer, task, MAX(xpamount) AS xpamount
+        FROM xp
+        INNER JOIN checks c on c.id = xp."Check"
+        GROUP BY peer, task) AS "XP"
+        GROUP BY peer
+            ORDER BY "XP" DESC;
+    END
+    $$ LANGUAGE plpgsql;
+
+-- Тестовая транзакция.
+BEGIN;
+CALL pr_peer_xp_sum('cursor_name');
+FETCH ALL FROM "cursor_name";
+END;
+
+-- 15) Определить всех пиров, которые сдали заданные задания 1 и 2, но не сдали задание 3
+-- Параметры процедуры: названия заданий 1, 2 и 3.
+-- Формат вывода: список пиров
+
+
+-- 16) Используя рекурсивное обобщенное табличное выражение, для каждой задачи вывести кол-во предшествующих ей задач
+-- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
+-- Формат вывода: название задачи, количество предшествующих
+
+
+-- 17) Найти "удачные" для проверок дни. День считается "удачным", если в нем есть хотя бы N идущих подряд успешных проверки
+-- Параметры процедуры: количество идущих подряд успешных проверок N.
+-- Временем проверки считать время начала P2P этапа.
+-- Под идущими подряд успешными проверками подразумеваются успешные проверки, между которыми нет неуспешных.
+-- При этом кол-во опыта за каждую из этих проверок должно быть не меньше 80% от максимального.
+-- Формат вывода: список дней
+
+
+
+-- 18) Определить пира с наибольшим числом выполненных заданий
+-- Формат вывода: ник пира, число выполненных заданий
+
+-- Удаление процедуры.
+DROP PROCEDURE IF EXISTS pr_max_done_task(ref refcursor);
+
+-- Создание процедуры.
+CREATE OR REPLACE PROCEDURE pr_max_done_task(IN ref refcursor) AS
+    $$
+BEGIN
+OPEN ref FOR
+    SELECT peer, count(xpamount) xp from xp
+    JOIN checks c on c.id = xp."Check"
+    GROUP BY peer
+    ORDER BY xp DESC
+    LIMIT 1;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Тестовая транзакция.
+BEGIN;
+CALL pr_max_done_task('cursor_name');
+FETCH ALL FROM "cursor_name";
+END;
+
+
+-- 19) Определить пира с наибольшим количеством XP
+-- Формат вывода: ник пира, количество XP
+
+-- Удаление процедуры.
+DROP PROCEDURE IF EXISTS pr_max_peer_xp(ref refcursor);
+
+-- Создание процедуры.
+CREATE OR REPLACE PROCEDURE pr_max_peer_xp(IN ref refcursor) AS
+    $$
+    BEGIN
+        OPEN ref FOR
+        SELECT
+            nickname AS "Peer",
+            sum(xpamount) AS "XP"
+        FROM peers
+        INNER JOIN checks c on peers.nickname = c.peer
+        INNER JOIN xp x on c.id = x."Check"
+        GROUP BY nickname
+        ORDER BY "XP" DESC
+        LIMIT 1;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Тестовая транзакция.
+BEGIN;
+CALL pr_max_peer_xp('cursor_name');
+FETCH ALL FROM "cursor_name";
+END;
+
+-- 20) Определить пира, который провел сегодня в кампусе больше всего времени
+-- Формат вывода: ник пира
+
+
+
+-- 21) Определить пиров, приходивших раньше заданного времени не менее N раз за всё время
+-- Параметры процедуры: время, количество раз N.
+-- Формат вывода: список пиров
+
+-- Удаление процедуры.
+DROP PROCEDURE IF EXISTS pr_time_spent(IN ref refcursor, checkTime time, N int);
+
+-- Создание процедуры.
+CREATE OR REPLACE PROCEDURE pr_time_spent(IN ref refcursor, checkTime time, N int)
+AS $$
+    BEGIN
+        OPEN ref FOR
+        SELECT peer
+        FROM timetracking t
+        WHERE state = 1
+        AND t."Time" < checkTime
+        GROUP BY peer
+        HAVING count(peer) > N;
+        END;
+    $$ LANGUAGE plpgsql;
+
+-- Тестовая транзакция.
+BEGIN;
+CALL pr_time_spent('cursor_name', '22:00:00', 2);
+FETCH ALL IN "cursor_name";
+END;
+
+-- 22) Определить пиров, выходивших за последние N дней из кампуса больше M раз
+-- Параметры процедуры: количество дней N, количество раз M.
+-- Формат вывода: список пиров
+
+-- Удаление процедуры.
+DROP PROCEDURE IF EXISTS pr_count_out_of_campus(IN ref refcursor, N int, M int);
+
+-- Создание процедуры.
+CREATE OR REPLACE PROCEDURE pr_count_out_of_campus(IN ref refcursor, N int, M int)
+AS $$
+    BEGIN
+OPEN ref FOR
+  SELECT peer FROM (
+      SELECT peer,
+             "Date",
+             count(*) AS counts
+            FROM timetracking
+            WHERE state = 2 AND "Date" > (current_date - N)
+            GROUP BY peer, "Date"
+            ORDER BY "Date") AS res
+        GROUP BY peer
+        HAVING SUM(counts) > M;
+END
+$$ LANGUAGE plpgsql;
+
+-- Тестовая транзакция.
+BEGIN;
+CALL pr_count_out_of_campus('cursor_name', 140, 0);
+FETCH ALL IN "cursor_name";
+END;
+
+-- 23) Определить пира, который пришел сегодня последним
+-- Формат вывода: ник пира
+
+-- Удаление процедуры.
+DROP PROCEDURE IF EXISTS pr_last_current_online(IN ref refcursor);
+
+-- Создание процедуры.
+CREATE OR REPLACE PROCEDURE pr_last_current_online(IN ref refcursor)
+AS $$
+    BEGIN
+OPEN ref FOR
+ SELECT peer
+        FROM timetracking
+        WHERE "Date" = current_date
+        AND state = 1
+        ORDER BY "Time" DESC
+        LIMIT 1;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Тестовая транзакция.
+BEGIN;
+CALL pr_last_current_online('cursor_name');
+FETCH ALL IN "cursor_name";
 END;
