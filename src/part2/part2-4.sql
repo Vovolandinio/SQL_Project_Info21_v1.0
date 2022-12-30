@@ -4,9 +4,9 @@ RETURNS TRIGGER AS $trg_xp$
 		status varchar(20);
 		max_xp integer;
 	BEGIN
-		SELECT xp.maxxp INTO max_xp
+		SELECT tasks.maxxp INTO max_xp
 		   FROM checks
-		   INNER JOIN xp ON xp.id = checks.id;
+		   INNER JOIN tasks ON tasks.title = checks.task;
 		SELECT p2p.state INTO status
 		   FROM checks
 		   INNER JOIN p2p ON checks.id = p2p."Check";
@@ -19,11 +19,17 @@ RETURNS TRIGGER AS $trg_xp$
 		  RETURN NEW;
 	   END IF;
 END;
-$trg_xp$ LANGUAGE plpgsql
+$trg_xp$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER trg_xp
 BEFORE INSERT ON xp
 FOR EACH ROW
 EXECUTE PROCEDURE fnc_xp();
+
+INSERT INTO xp(check, xpamount)
+VALUES(12, 750);
+
+select *
+FROM xp
 
 DROP FUNCTION fnc_xp()
