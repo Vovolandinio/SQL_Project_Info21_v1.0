@@ -101,3 +101,48 @@ CALL pr_verter_check (
     '09:22:00'
 );
 -- Tests end.
+
+-- Триггеры.
+
+
+-- 4) Написать триггер: перед добавлением записи в таблицу XP, проверить корректность добавляемой записи
+-- Запись считается корректной, если:
+-- Количество XP не превышает максимальное доступное для проверяемой задачи
+-- Поле Check ссылается на успешную проверку
+-- Если запись не прошла проверку, не добавлять её в таблицу.
+
+CREATE OR REPLACE FUNCTION fnc_xp()
+RETURNS TRIGGER AS $trg_xp$
+	DECLARE
+		status varchar(20);
+		max_xp integer;
+	BEGIN
+		SELECT tasks.maxxp INTO max_xp
+		   FROM checks
+		   INNER JOIN tasks ON tasks.title = checks.task;
+		SELECT p2p.state INTO status
+		   FROM checks
+		   INNER JOIN p2p ON checks.id = p2p."Check";
+
+	   IF new.xpamount > max_xp THEN
+		  RAISE EXCEPTION 'xp amount is more than max xp for this task';
+	   ELSEIF status = 'Failure' THEN
+	   	   RAISE EXCEPTION 'check is failure';
+ 	   ELSE
+		  RETURN NEW;
+	   END IF;
+END;
+$trg_xp$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trg_xp
+BEFORE INSERT ON xp
+FOR EACH ROW
+EXECUTE PROCEDURE fnc_xp();
+
+INSERT INTO xp("Check", xpamount)
+VALUES(12, 750);
+
+select *
+FROM xp;
+
+DROP PROCEDURE IF EXISTS fnc_xp();
