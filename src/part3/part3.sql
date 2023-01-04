@@ -422,37 +422,31 @@ END;
 -- При этом кол-во опыта за каждую из этих проверок должно быть не меньше 80% от максимального.
 -- Формат вывода: список дней
 
-
--- Для удобства, создадим материализованное представление.
-CREATE MATERIALIZED VIEW mv_all_done_checks AS
-    SELECT c.id,
-    "Date",
-    peer,
-    v."Check" AS id_check,
-    t.maxxp AS max_xp,
-    x.xpamount AS peer_get_xp,
-    v.state
-    FROM checks c
-    INNER JOIN p2p on c.id = p2p."Check" AND (p2p.state = 'Success')
-    INNER JOIN verter v on c.id = v."Check" AND (v.state = 'Success')
-    INNER JOIN tasks t on t.title = c.task
-    INNER JOIN xp x on c.id = x."Check"
-ORDER BY "Date";
--- Удаление таблицы.
-DROP MATERIALIZED VIEW IF EXISTS mv_all_done_checks;
-
 -- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_lucky_day(ref refcursor);
 
 CREATE OR REPLACE PROCEDURE pr_lucky_day(IN ref refcursor, N int) AS
     $$ BEGIN
         OPEN ref FOR
-        SELECT "Date",
-               count("Date") AS count_dats
-        FROM mv_all_done_checks mv
-        WHERE mv.peer_get_xp > mv.max_xp * 0.8
-                GROUP BY "Date"
-        HAVING count("Date") >= N;
+            WITH t1 AS (
+            SELECT c.id,
+                   "Date",
+                   peer,
+                   v."Check" AS id_check,
+                   t.maxxp AS max_xp,
+                   x.xpamount AS peer_get_xp,
+                   v.state
+            FROM checks c
+                INNER JOIN p2p on c.id = p2p."Check" AND (p2p.state = 'Success')
+                INNER JOIN verter v on c.id = v."Check" AND (v.state = 'Success')
+                INNER JOIN tasks t on t.title = c.task
+                INNER JOIN xp x on c.id = x."Check"
+            ORDER BY "Date")
+            SELECT "Date"
+            FROM t1
+            WHERE t1.peer_get_xp > t1.max_xp * 0.8
+            GROUP BY "Date"
+            HAVING count("Date") >= N;
 END
 $$ LANGUAGE plpgsql;
 
@@ -461,7 +455,6 @@ BEGIN;
 CALL pr_lucky_day('cursor_name', 3);
 FETCH ALL FROM "cursor_name";
 END;
-
 
 
 -- 18) Определить пира с наибольшим числом выполненных заданий
