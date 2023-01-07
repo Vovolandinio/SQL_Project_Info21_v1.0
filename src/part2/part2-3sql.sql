@@ -1,31 +1,20 @@
 CREATE or replace FUNCTION fnc_transferredpoints()
 RETURNS TRIGGER AS $tab$
     BEGIN
-        IF NEW.state = 'Start'
-            THEN
-			WITH one AS (SELECT 
-		  		MAX(transferredpoints.id) + 1 AS id,
-		  		p2p.checkingpeer,
-		  		checked,
-		  		xp.xpamount AS pointsamount
+        IF NEW.state = 'Start' THEN
+			WITH one AS (SELECT DISTINCT
+		  		NEW.checkingpeer,
+		  		checks.peer as checkedpeer
 			   FROM p2p
-			   INNER JOIN checks ON checks.id = p2p."Check"
-			   INNER JOIN xp ON xp.id = p2p."Check"
-			   WHERE checkingpeer = checking
-				  AND peer = checked
-				  AND task = taskName)
+			   INNER JOIN checks ON checks.id = NEW."Check"
+			   GROUP BY p2p.checkingpeer, checkedpeer)
 
-		   INSERT INTO transferredpoints
-		   ( id,
-			 checkingpeer,
-			 checkedpeer,
-			 pointsamount )
-		   VALUES
-		   ( one.id,
-			 one.checkingpeer,
-			 one.checkedpeer,
-			 one.pointsamount );
-                
+            UPDATE transferredpoints
+                SET pointsamount = transferredpoints.pointsamount + 1
+                FROM one
+                WHERE transferredpoints.checkingpeer = one.checkingpeer
+                AND transferredpoints.checkedpeer = one.checkedpeer;
+			RETURN NEW;
     END IF;
 END;
 $tab$ LANGUAGE plpgsql
@@ -37,8 +26,5 @@ EXECUTE PROCEDURE fnc_transferredpoints();
 
 SELECT *
 FROM transferredpoints;
-
-INSERT INTO p2p (checkingpeer, state)
-VALUES ('Dori', 'Start');
 
 drop FUNCTION fnc_transferredpoints() CASCADE
