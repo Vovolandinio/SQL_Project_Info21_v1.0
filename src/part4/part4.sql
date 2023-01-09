@@ -1,5 +1,5 @@
--- 1) Создать хранимую процедуру, которая, не уничтожая базу данных, уничтожает все те таблицы текущей базы данных, имена которых начинаются с фразы 'TableName'.
-
+-- 1) Создать хранимую процедуру, которая, не уничтожая базу данных,
+-- уничтожает все те таблицы текущей базы данных, имена которых начинаются с фразы 'TableName'.
 
 -- Создание таблицы для теста.
 CREATE TABLE returns_table (peer varchar, task varchar, xpamount integer);
@@ -26,3 +26,35 @@ $$ LANGUAGE plpgsql;
 BEGIN;
 CALL pr_remove_table('returns');
 END;
+
+-- 2) Создать хранимую процедуру с выходным параметром, которая выводит список имен и параметров всех скалярных SQL функций
+-- пользователя в текущей базе данных. Имена функций без параметров не выводить. Имена и список параметров должны выводиться в одну строку.
+-- Выходной параметр возвращает количество найденных функций.
+
+
+-- 3) Создать хранимую процедуру с выходным параметром, которая уничтожает все SQL DML триггеры в текущей базе данных.
+-- Выходной параметр возвращает количество уничтоженных триггеров.
+
+DROP PROCEDURE IF EXISTS pr_delete_dml_triggers (IN ref refcursor, INOUT result int);
+
+CREATE OR REPLACE PROCEDURE pr_delete_dml_triggers (IN ref refcursor, INOUT result int)
+AS $$
+BEGIN
+FOR ref IN
+    SELECT trigger_name || ' ON ' || event_object_table
+    FROM information_schema.triggers
+    WHERE trigger_schema = 'public'
+LOOP
+    EXECUTE 'DROP TRIGGER ' || ref;
+    result := result + 1;
+    END LOOP;
+END
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+CALL pr_delete_dml_triggers('cursor_name',0);
+END;
+
+
+SELECT trigger_name
+FROM information_schema.triggers
