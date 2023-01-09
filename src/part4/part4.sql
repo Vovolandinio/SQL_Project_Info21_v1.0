@@ -35,8 +35,10 @@ END;
 -- 3) Создать хранимую процедуру с выходным параметром, которая уничтожает все SQL DML триггеры в текущей базе данных.
 -- Выходной параметр возвращает количество уничтоженных триггеров.
 
+-- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_delete_dml_triggers (IN ref refcursor, INOUT result int);
 
+-- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_delete_dml_triggers (IN ref refcursor, INOUT result int)
 AS $$
 BEGIN
@@ -51,10 +53,37 @@ LOOP
 END
 $$ LANGUAGE plpgsql;
 
+-- Тестовая транзакция.
 BEGIN;
 CALL pr_delete_dml_triggers('cursor_name',0);
 END;
 
-
+-- Проверка.
 SELECT trigger_name
-FROM information_schema.triggers
+FROM information_schema.triggers;
+
+
+
+--4) Создать хранимую процедуру с входным параметром, которая выводит имена и описания типа объектов (только
+-- хранимых процедур и скалярных функций), в тексте которых на языке SQL встречается строка, задаваемая параметром процедуры.
+
+-- Удаление процедуры.
+DROP PROCEDURE IF EXISTS pr_show_info (IN ref refcursor, IN name text);
+
+-- Создание процедуры.
+CREATE OR REPLACE PROCEDURE pr_show_info (IN ref refcursor, IN name text)
+AS $$
+    BEGIN
+OPEN ref FOR
+    SELECT routine_name,
+           routine_type
+    FROM information_schema.routines
+    WHERE specific_schema='public'
+        AND routine_definition LIKE '%' || name || '%';
+END
+    $$ LANGUAGE plpgsql;
+
+BEGIN;
+CALL pr_show_info('cursor_name', 'date');
+FETCH ALL IN "cursor_name";
+END;
