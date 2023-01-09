@@ -14,15 +14,14 @@ RETURNS TABLE ("Peer1" varchar, "Peer2" varchar, "PointsAmount" integer) AS $$
             tp.pointsamount
         FROM
             TransferredPoints tp
-        INNER JOIN TransferredPoints t2 ON t2.checkingPeer = tp.checkedPeer
-        AND t2.checkedPeer = tp.checkingPeer AND tp.id < t2.id)
+        INNER JOIN TransferredPoints ON tp.checkingPeer = tp.checkedPeer
+        AND tp.checkedPeer = tp.checkingPeer AND tp.id < tp.id)
     (SELECT checkingPeer,
             checkedPeer,
             sum(result.pointsamount) FROM
     (SELECT tp.checkingPeer, tp.checkedPeer, tp.pointsamount FROM TransferredPoints tp
                                                           UNION
-                                                          SELECT t.checkedPeer, t.checkingPeer, -t.pointsamount FROM tmp t
-    ) AS result
+                                                          SELECT t.checkedPeer, t.checkingPeer, -t.pointsamount FROM tmp t) AS result
     GROUP BY 1, 2)
     EXCEPT
     SELECT
@@ -39,7 +38,6 @@ SELECT * FROM fnc_transferred_points();
 -- В таблицу включать только задания, успешно прошедшие проверку (определять по таблице Checks).
 -- Одна задача может быть успешно выполнена несколько раз. В таком случае в таблицу включать все успешные проверки.
 
-------------------------------------------------------------------------------------------------------------
 
 -- 3) Написать функцию, определяющую пиров, которые не выходили из кампуса в течение всего дня
 -- Параметры функции: день, например 12.05.2022.
@@ -269,7 +267,6 @@ END;
 -- Параметры процедуры: название блока, например "CPP".
 -- Результат вывести отсортированным по дате завершения.
 -- Формат вывода: ник пира, дата завершения блока (т.е. последнего выполненного задания из этого блока)
-
 
 
 

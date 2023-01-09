@@ -23,7 +23,8 @@ LANGUAGE plpgsql AS $$
     BEGIN
         IF state = 'Start'
             THEN
-                id_check = (SELECT max(id) from checks) + 1;
+                id_check = (SELECT
+                                max(id) from checks) + 1;
             INSERT INTO checks (id, peer, task, "Date")
             VALUES (id_check, checked, taskName,(SELECT CURRENT_DATE));
             ELSE
@@ -45,7 +46,7 @@ LANGUAGE plpgsql AS $$
 CALL pr_p2p_check (
     'Diluc',
     'Bennett',
-    'C5_s21_decimal',
+    'C6_s21_matrix',
     'Start',
     '09:00:00'
 );
@@ -53,7 +54,7 @@ CALL pr_p2p_check (
 CALL pr_p2p_check (
     'Diluc',
     'Bennett',
-    'C5_s21_decimal',
+    'C6_s21_matrix',
     'Success',
     '09:20:00'
 );
@@ -64,15 +65,10 @@ CALL pr_p2p_check (
 -- Параметры: ник проверяемого, название задания, статус проверки Verter'ом, время.
 -- Добавить запись в таблицу Verter (в качестве проверки указать проверку соответствующего задания с самым поздним (по времени) успешным P2P этапом)
 
-CREATE or replace PROCEDURE pr_verter_check(nickname varchar,
-taskName varchar,
-verterState check_status,
-checkTime time)
+CREATE or replace PROCEDURE pr_verter_check(nickname varchar,taskName varchar, verterState check_status,checkTime time)
 LANGUAGE plpgsql AS $$
     DECLARE
-        id_check integer;
-BEGIN
-        id_check = (SELECT checks.id
+        id_check integer := (SELECT checks.id
         FROM p2p
         INNER JOIN checks
             ON checks.id = p2p."Check" AND p2p.state = 'Success'
@@ -80,23 +76,23 @@ BEGIN
         AND checks.peer = nickname
         ORDER BY p2p."Time"
         LIMIT 1);
-
+BEGIN
         INSERT INTO verter ("Check", state, "Time")
-        VALUES (id_check, verterState,checkTime);
+        VALUES (id_check, verterState, checkTime);
     END
 $$;
 
 -- Tests start.
 CALL pr_verter_check (
     'Diluc',
-    'C5_s21_decimal',
+    'C6_s21_matrix',
     'Start',
     '09:21:00'
 );
 
 CALL pr_verter_check (
     'Diluc',
-    'C5_s21_decimal',
+    'C6_s21_matrix',
     'Success',
     '09:22:00'
 );
@@ -104,12 +100,50 @@ CALL pr_verter_check (
 
 -- Триггеры.
 
+-- 3) Написать триггер: после добавления записи со статутом "начало" в таблицу P2P, изменить соответствующую запись в таблице TransferredPoints
+
+-- Удаление функции.
+drop FUNCTION fnc_transferred_points_after_p2p_start() CASCADE;
+
+-- Создание вспомогательной функции.
+CREATE OR REPLACE FUNCTION fnc_transferred_points_after_p2p_start()
+RETURNS TRIGGER AS $tab$
+    BEGIN
+        IF NEW.state = 'Start' THEN
+			WITH one AS (SELECT DISTINCT
+		  		NEW.checkingpeer,
+		  		checks.peer as checkedpeer
+			   FROM p2p
+			   INNER JOIN checks ON checks.id = NEW."Check"
+			   GROUP BY p2p.checkingpeer, checkedpeer)
+
+            UPDATE transferredpoints
+                SET pointsamount = transferredpoints.pointsamount + 1
+                FROM one
+                WHERE transferredpoints.checkingpeer = one.checkingpeer
+                AND transferredpoints.checkedpeer = one.checkedpeer;
+			RETURN NEW;
+    END IF;
+END;
+$tab$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_transferred_points
+    AFTER INSERT ON p2p
+    FOR EACH ROW
+    EXECUTE PROCEDURE fnc_transferred_points_after_p2p_start();
+
+
+SELECT *
+FROM transferredpoints;
+
 
 -- 4) Написать триггер: перед добавлением записи в таблицу XP, проверить корректность добавляемой записи
 -- Запись считается корректной, если:
 -- Количество XP не превышает максимальное доступное для проверяемой задачи
 -- Поле Check ссылается на успешную проверку
 -- Если запись не прошла проверку, не добавлять её в таблицу.
+
+DROP PROCEDURE IF EXISTS fnc_xp();
 
 CREATE OR REPLACE FUNCTION fnc_xp()
 RETURNS TRIGGER AS $trg_xp$
@@ -134,15 +168,16 @@ RETURNS TRIGGER AS $trg_xp$
 END;
 $trg_xp$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER trg_xp
-BEFORE INSERT ON xp
-FOR EACH ROW
-EXECUTE PROCEDURE fnc_xp();
+
+CREATE TRIGGER trg_xp
+    BEFORE INSERT ON xp
+    FOR EACH ROW
+    EXECUTE PROCEDURE fnc_xp();
 
 INSERT INTO xp("Check", xpamount)
 VALUES(12, 750);
 
-select *
+SELECT *
 FROM xp;
 
 DROP PROCEDURE IF EXISTS fnc_xp();
