@@ -17,14 +17,13 @@ checking varchar,
 taskName varchar,
 state check_status,
 P2Ptime time)
-LANGUAGE plpgsql AS $$
+AS $$
     DECLARE
-        id_check integer;
+        id_check integer := 0;
     BEGIN
         IF state = 'Start'
             THEN
-                id_check = (SELECT
-                                max(id) from checks) + 1;
+                id_check = (SELECT max(id) FROM checks) + 1;
             INSERT INTO checks (id, peer, task, "Date")
             VALUES (id_check, checked, taskName,(SELECT CURRENT_DATE));
             ELSE
@@ -39,8 +38,8 @@ LANGUAGE plpgsql AS $$
 
     INSERT INTO p2p ("Check", checkingpeer, state, "Time" )
     VALUES (id_check, checking, state, P2Ptime);
-    END;
-    $$;
+    END
+    $$ LANGUAGE plpgsql;
 
 -- Tests starts.
 CALL pr_p2p_check (
@@ -66,7 +65,7 @@ CALL pr_p2p_check (
 -- Добавить запись в таблицу Verter (в качестве проверки указать проверку соответствующего задания с самым поздним (по времени) успешным P2P этапом)
 
 CREATE or replace PROCEDURE pr_verter_check(nickname varchar,taskName varchar, verterState check_status,checkTime time)
-LANGUAGE plpgsql AS $$
+AS $$
     DECLARE
         id_check integer := (SELECT checks.id
         FROM p2p
@@ -80,7 +79,7 @@ BEGIN
         INSERT INTO verter ("Check", state, "Time")
         VALUES (id_check, verterState, checkTime);
     END
-$$;
+$$ LANGUAGE plpgsql;
 
 -- Tests start.
 CALL pr_verter_check (

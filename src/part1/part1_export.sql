@@ -1,15 +1,17 @@
 DROP PROCEDURE IF EXISTS pr_export_to_csv_from_table(table text, path text, delimetr text);
 
 CREATE or replace PROCEDURE pr_export_to_csv_from_table(IN "table" text,IN path text,IN delimetr text)
-LANGUAGE plpgsql as $$
+AS $$
 BEGIN
     EXECUTE format('COPY %s TO %L DELIMITER ''%s'' CSV HEADER;', $1, $2, $3);
-END; $$;
+
+END;
+$$ LANGUAGE plpgsql;
 
 
 -- export data from tables to csv files
-CALL pr_export_to_csv_from_table('transferredpoints','/Users/warbirdo/Desktop/SQL_Project_Info21_v1.0/src/part1/export/transferredpoints.csv',',');
-CALL pr_export_to_csv_from_table('p2p','/Users/warbirdo/Desktop/SQL_Project_Info21_v1.0/src/part1/export/p2p.csv',',');
+CALL pr_export_to_csv_from_table('transferredpoints','/home/vladimir/Рабочий стол/SQL_Project_Info21_v1.0/src/part1/export/transferredpoints.csv',',');
+CALL pr_export_to_csv_from_table('p2p','/home/vladimir/Рабочий стол/SQL_Project_Info21_v1.0/src/part1/export/p2p.csv',',');
 CALL pr_export_to_csv_from_table('checks','/Users/warbirdo/Desktop/SQL_Project_Info21_v1.0/src/part1/export/checks.csv',',');
 CALL pr_export_to_csv_from_table('verter','/Users/warbirdo/Desktop/SQL_Project_Info21_v1.0/src/part1/export/verter.csv',',');
 CALL pr_export_to_csv_from_table('xp','/Users/warbirdo/Desktop/SQL_Project_Info21_v1.0/src/part1/export/xp.csv',',');

@@ -15,7 +15,7 @@ RETURNS TABLE ("Peer1" varchar, "Peer2" varchar, "PointsAmount" integer) AS $$
         FROM
             TransferredPoints tp
         INNER JOIN TransferredPoints ON tp.checkingPeer = tp.checkedPeer
-        AND tp.checkedPeer = tp.checkingPeer AND tp.id < tp.id)
+        AND tp.checkedPeer = tp.checkingPeer)
     (SELECT checkingPeer,
             checkedPeer,
             sum(result.pointsamount) FROM
@@ -62,12 +62,13 @@ SELECT * FROM fnc_check_date('2022-06-09');
 -- Формат вывода: процент успешных, процент неуспешных
 
 -- Удаление процедуры.
-DROP PROCEDURE IF EXISTS pr_success_percent(result_data refcursor);
+DROP PROCEDURE IF EXISTS pr_success_percent(IN ref refcursor);
 -- Создание процедуры.
-CREATE OR REPLACE PROCEDURE pr_success_percent(result_data refcursor)
+CREATE OR REPLACE PROCEDURE pr_success_percent(IN ref refcursor)
 AS $$
     BEGIN
-        OPEN result_data FOR with tmp as (
+        OPEN ref FOR
+            WITH tmp AS (
 SELECT
     id,
     "Check",
@@ -83,24 +84,27 @@ SELECT
     "Time"
 FROM verter
 WHERE NOT (state = 'Start'))
-SELECT
-    (cast(cast((SELECT count(*)
-FROM p2p
-WHERE NOT (state = 'Start')) - count(*) AS numeric) /  (SELECT count(*)
-FROM p2p
-WHERE NOT (state = 'Start')) * 100 AS int)) AS SuccessfulChecks,
-cast(cast(count(*) AS numeric) / (SELECT count(*)
-FROM p2p
-WHERE NOT (state = 'Start')) * 100 AS int) AS UnsuccessfulChecks
-FROM tmp
-WHERE (state = 'Failure');
+
+            SELECT
+                (cast
+                    (cast((SELECT count(*)
+                            FROM p2p
+                            WHERE NOT (state = 'Start')) - count(*) AS numeric) /  (SELECT count(*)
+                                                                                    FROM p2p
+                                                                                    WHERE NOT (state = 'Start')) * 100 AS int)) AS SuccessfulChecks,
+                cast
+                    (cast(count(*) AS numeric) / (SELECT count(*)
+                                                  FROM p2p
+                                                  WHERE NOT (state = 'Start')) * 100 AS int) AS UnsuccessfulChecks
+            FROM tmp
+            WHERE (state = 'Failure');
 END;
 $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_success_percent('cursor_name');
-FETCH ALL IN "cursor_name";
+CALL pr_success_percent('ref');
+FETCH ALL IN "ref";
 END;
 
 -- 5) Посчитать изменение в количестве пир поинтов каждого пира по таблице TransferredPoints
@@ -108,11 +112,11 @@ END;
 -- Формат вывода: ник пира, изменение в количество пир поинтов
 
 -- Удаление процедуры.
-DROP PROCEDURE IF EXISTS pr_points_change(result_data refcursor);
+DROP PROCEDURE IF EXISTS pr_points_change(IN ref refcursor);
 -- Создание процедуры.
-CREATE OR REPLACE PROCEDURE pr_points_change(result_data refcursor)
+CREATE OR REPLACE PROCEDURE pr_points_change(IN ref refcursor)
 AS $$ BEGIN
-    OPEN result_data FOR
+    OPEN ref FOR
 SELECT
     checkingpeer AS Peer,
     SUM(pointsamount) AS PointsChange
@@ -135,8 +139,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_points_change('cursor_name');
-FETCH ALL IN "cursor_name";
+CALL pr_points_change('ref');
+FETCH ALL IN "ref";
 END;
 
 -- 6) Посчитать изменение в количестве пир поинтов каждого пира по таблице, возвращаемой первой функцией из Part 3
@@ -144,12 +148,12 @@ END;
 -- Формат вывода: ник пира, изменение в количество пир поинтов
 
 -- Удаление процедуры.
-DROP procedure IF EXISTS pr_transferred_points(result_data refcursor);
+DROP procedure IF EXISTS pr_transferred_points(IN ref refcursor);
 -- Создание процедуры.
-CREATE OR REPLACE PROCEDURE pr_transferred_points(result_data refcursor)
+CREATE OR REPLACE PROCEDURE pr_transferred_points(IN ref  refcursor)
 AS $$
     BEGIN
-        OPEN result_data FOR
+        OPEN ref  FOR
 SELECT "Peer1" as Peer,
        sum(pointsamount) AS PointsChange
 FROM
@@ -169,8 +173,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_transferred_points('cursor_name');
-FETCH ALL IN "cursor_name";
+CALL pr_transferred_points('ref');
+FETCH ALL IN "ref";
 END;
 
 -- 7) Определить самое часто проверяемое задание за каждый день
@@ -178,12 +182,12 @@ END;
 -- Формат вывода: день, название задания
 
 -- Удаление процедуры.
-DROP PROCEDURE IF EXISTS pr_max_task_check(result_data refcursor);
+DROP PROCEDURE IF EXISTS pr_max_task_check(IN ref refcursor);
 -- Создание процедуры.
-create or replace procedure pr_max_task_check(result_data refcursor)
+create or replace procedure pr_max_task_check(IN ref  refcursor)
 AS $$
     BEGIN
-        OPEN result_data FOR
+        OPEN ref FOR
   WITH t1 AS (
     SELECT
         "Date" AS d,
@@ -205,8 +209,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_max_task_check('cursor_name');
-FETCH ALL IN "cursor_name";
+CALL pr_max_task_check('ref');
+FETCH ALL IN "ref";
 END;
 
 -- 8) Определить длительность последней P2P проверки
@@ -258,8 +262,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_check_duration('cursor_name');
-FETCH ALL IN "cursor_name";
+CALL pr_check_duration('ref');
+FETCH ALL IN "ref";
 END;
 
 
@@ -311,8 +315,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 BEGIN;
-CALL pr_recommendation_peer('cursor_name');
-FETCH ALL FROM "cursor_name";
+CALL pr_recommendation_peer('ref');
+FETCH ALL FROM "ref";
 END;
 
 
@@ -360,8 +364,8 @@ LIMIT limits;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_count_friends('cursor_name',3);
-FETCH ALL FROM "cursor_name";
+CALL pr_count_friends('ref',3);
+FETCH ALL FROM "ref";
 END;
 
 
@@ -398,8 +402,8 @@ AS $$
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_peer_xp_sum('cursor_name');
-FETCH ALL FROM "cursor_name";
+CALL pr_peer_xp_sum('ref');
+FETCH ALL FROM "ref";
 END;
 
 -- 15) Определить всех пиров, которые сдали заданные задания 1 и 2, но не сдали задание 3
@@ -449,8 +453,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_lucky_day('cursor_name', 3);
-FETCH ALL FROM "cursor_name";
+CALL pr_lucky_day('ref', 3);
+FETCH ALL FROM "ref";
 END;
 
 
@@ -475,8 +479,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_max_done_task('cursor_name');
-FETCH ALL FROM "cursor_name";
+CALL pr_max_done_task('ref');
+FETCH ALL FROM "ref";
 END;
 
 
@@ -505,8 +509,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_max_peer_xp('cursor_name');
-FETCH ALL FROM "cursor_name";
+CALL pr_max_peer_xp('ref');
+FETCH ALL FROM "ref";
 END;
 
 -- 20) Определить пира, который провел сегодня в кампусе больше всего времени
@@ -537,8 +541,8 @@ AS $$
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_time_spent('cursor_name', '22:00:00', 2);
-FETCH ALL IN "cursor_name";
+CALL pr_time_spent('ref', '22:00:00', 2);
+FETCH ALL IN "ref";
 END;
 
 -- 22) Определить пиров, выходивших за последние N дней из кампуса больше M раз
@@ -568,8 +572,8 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_count_out_of_campus('cursor_name', 140, 0);
-FETCH ALL IN "cursor_name";
+CALL pr_count_out_of_campus('ref', 140, 0);
+FETCH ALL IN "ref";
 END;
 
 -- 23) Определить пира, который пришел сегодня последним
@@ -594,6 +598,6 @@ $$ LANGUAGE plpgsql;
 
 -- Тестовая транзакция.
 BEGIN;
-CALL pr_last_current_online('cursor_name');
-FETCH ALL IN "cursor_name";
+CALL pr_last_current_online('ref');
+FETCH ALL IN "ref";
 END;
