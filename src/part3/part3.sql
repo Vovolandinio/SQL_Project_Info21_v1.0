@@ -284,7 +284,7 @@ DROP PROCEDURE IF EXISTS pr_recommendation_peer(IN ref refcursor);
 CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN ref refcursor)
 AS $$
 BEGIN
-    OPEN ref FOR
+  --  OPEN ref FOR
     
 END;
 $$ LANGUAGE plpgsql;
