@@ -279,38 +279,13 @@ END;
 -- Формат вывода: ник пира, ник найденного проверяющего
 
 
-DROP PROCEDURE IF EXISTS pr_recommendation_peer;
+DROP PROCEDURE IF EXISTS pr_recommendation_peer(IN ref refcursor);
 
 CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN ref refcursor)
 AS $$
 BEGIN
-    WITH w_tmp1 AS
-        (SELECT
-             peers.nickname as peer,
-             friends.peer2 as friend,
-             r.recommendedpeer as recommendedpeer
-    FROM peers
-    INNER JOIN friends ON peers.nickname = friends.peer1
-    INNER JOIN recommendations r ON friends.peer2 = r.peer AND peers.nickname != r.recommendedpeer
-    ORDER BY 1,2),
-    w_tmp2 AS (
-    SELECT peer,
-           recommendedpeer,
-           count(recommendedpeer) AS count_of_recommends
-    FROM w_tmp1
-    GROUP BY 1,2
-    ORDER BY 1,2),
-    w_tmp3 AS (
-    SELECT peer,
-           recommendedpeer,
-           count_of_recommends,
-           ROW_NUMBER() OVER (PARTITION BY peer ORDER BY count_of_recommends DESC) AS num_of_row_for_each_peer
-    FROM w_tmp2)
-
-    SELECT peer,
-           recommendedpeer
-    FROM w_tmp3
-    WHERE num_of_row_for_each_peer = 1;
+    OPEN ref FOR
+    
 END;
 $$ LANGUAGE plpgsql;
 
