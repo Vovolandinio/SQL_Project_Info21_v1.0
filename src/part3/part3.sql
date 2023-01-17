@@ -38,6 +38,28 @@ SELECT * FROM fnc_transferred_points();
 -- В таблицу включать только задания, успешно прошедшие проверку (определять по таблице Checks).
 -- Одна задача может быть успешно выполнена несколько раз. В таком случае в таблицу включать все успешные проверки.
 
+drop  FUNCTION fnc_successful_checks;
+
+CREATE or replace FUNCTION fnc_successful_checks()
+RETURNS SETOF returns_table AS $tab$
+    BEGIN
+        return query
+            WITH one AS (SELECT checks.id
+            FROM checks
+            INNER JOIN p2p ON checks.id = p2p."Check"
+            INNER JOIN Verter ON checks.id = Verter."Check"
+            WHERE p2p.state = 'Success' AND Verter.state = 'Success'
+            GROUP BY checks.id)
+
+            SELECT checks.peer,
+                   checks.task,
+                   xp.xpamount
+            FROM one
+            INNER JOIN checks ON one.id = checks.id
+            INNER JOIN XP ON one.id = XP."Check"
+            GROUP BY checks.peer, checks.task, xp.xpamount;
+    END
+$tab$ LANGUAGE plpgsql;
 
 -- 3) Написать функцию, определяющую пиров, которые не выходили из кампуса в течение всего дня
 -- Параметры функции: день, например 12.05.2022.
@@ -272,7 +294,32 @@ END;
 -- Результат вывести отсортированным по дате завершения.
 -- Формат вывода: ник пира, дата завершения блока (т.е. последнего выполненного задания из этого блока)
 
+drop  FUNCTION fnc_successful_checks;
 
+CREATE or replace FUNCTION fnc_successful_checks(task varchar)
+RETURNS SETOF returns_table AS $tab$
+    BEGIN
+        return query
+            WITH one AS (SELECT *
+                        FROM tasks
+                        WHERE title LIKE concat('C', '%')),
+                              -- concat('C', '%') AND title NOT LIKE concat('CPP', '%')),
+            last_task AS (SELECT MAX(title) AS title
+                        FROM one),
+            date_of_successful_check AS (SELECT peer,
+                                                checks.task,
+                                                checks."Date"
+                        FROM checks
+                        INNER JOIN p2p ON checks.id = p2p."Check"
+                        INNER JOIN Verter ON checks.id = Verter."Check"
+                        WHERE p2p.state = 'Success' AND Verter.state = 'Success'
+                        GROUP BY checks.id)
+
+            SELECT peer AS Peer,
+                   date_of_successful_check."Date" AS Date
+            FROM date_of_successful_check INNER JOIN last_task ON date_of_successful_check.task = last_task.title
+    END
+$tab$ LANGUAGE plpgsql;
 
 -- 10) Определить, к какому пиру стоит идти на проверку каждому обучающемуся
 -- Определять нужно исходя из рекомендаций друзей пира, т.е. нужно найти пира, проверяться у которого рекомендует наибольшее число друзей.
