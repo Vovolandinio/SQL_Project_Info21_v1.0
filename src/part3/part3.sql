@@ -395,6 +395,23 @@ END;
 -- Также определите процент пиров, которые хоть раз проваливали проверку в свой день рождения.
 -- Формат вывода: процент успехов в день рождения, процент неуспехов в день рождения
 
+CREATE FUNCTION fnc_successful_checks_birthday(block1 varchar)
+RETURNS TABLE(SuccessfulChecks integer, UnsuccessfulChecks integer)
+AS $$
+DECLARE
+    checks_count integer;
+BEGIN
+        SELECT MAX(Checks.id) INTO STRICT checks_count
+        FROM Checks;
+        SELECT (SELECT COUNT(*)/checks_count
+        FROM Peers INNER JOIN Checks ON Peers.birthday = Checks."Date"
+        WHERE Peers.Nickname = Checks.Peer) AS SuccessfulChecks,
+                (SELECT (checks_count - COUNT(*))/checks_count
+        FROM Peers INNER JOIN Checks ON Peers.birthday = Checks."Date"
+        WHERE Peers.Nickname = Checks.Peer) AS UnsuccessfulChecks;
+    END
+$$
+LANGUAGE plpgsql;
 
 
 
