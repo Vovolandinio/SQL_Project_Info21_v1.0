@@ -41,9 +41,9 @@ SELECT * FROM fnc_transferred_points();
 drop  FUNCTION fnc_successful_checks;
 
 CREATE or replace FUNCTION fnc_successful_checks()
-RETURNS SETOF returns_table AS $tab$
+RETURNS TABLE(peer varchar, task varchar, xpamount integer) AS $tab$
     BEGIN
-        return query
+            RETURN QUERY
             WITH one AS (SELECT checks.id
             FROM checks
             INNER JOIN p2p ON checks.id = p2p."Check"
@@ -60,6 +60,8 @@ RETURNS SETOF returns_table AS $tab$
             GROUP BY checks.peer, checks.task, xp.xpamount;
     END
 $tab$ LANGUAGE plpgsql;
+
+SELECT * FROM fnc_successful_checks();
 
 -- 3) Написать функцию, определяющую пиров, которые не выходили из кампуса в течение всего дня
 -- Параметры функции: день, например 12.05.2022.
@@ -294,32 +296,35 @@ END;
 -- Результат вывести отсортированным по дате завершения.
 -- Формат вывода: ник пира, дата завершения блока (т.е. последнего выполненного задания из этого блока)
 
-drop  FUNCTION fnc_successful_checks;
+drop  FUNCTION fnc_successful_checks_last_task;
 
-CREATE or replace FUNCTION fnc_successful_checks(task varchar)
-RETURNS SETOF returns_table AS $tab$
+CREATE or replace FUNCTION fnc_successful_checks_last_task(mytask varchar)
+RETURNS TABLE(peer varchar, "date" date) AS $tab$
     BEGIN
         return query
             WITH one AS (SELECT *
                         FROM tasks
-                        WHERE title LIKE concat('C', '%')),
-                              -- concat('C', '%') AND title NOT LIKE concat('CPP', '%')),
+                        WHERE title LIKE concat(mytask, '%')
+                             AND title NOT LIKE concat('CPP', '%')),
             last_task AS (SELECT MAX(title) AS title
                         FROM one),
-            date_of_successful_check AS (SELECT peer,
+            date_of_successful_check AS (SELECT checks.peer,
                                                 checks.task,
                                                 checks."Date"
                         FROM checks
                         INNER JOIN p2p ON checks.id = p2p."Check"
-                        INNER JOIN Verter ON checks.id = Verter."Check"
-                        WHERE p2p.state = 'Success' AND Verter.state = 'Success'
+--                         INNER JOIN Verter ON checks.id = Verter."Check"
+                        WHERE p2p.state = 'Success'
+--                           AND Verter.state = 'Success'
                         GROUP BY checks.id)
 
-            SELECT peer AS Peer,
-                   date_of_successful_check."Date" AS Date
-            FROM date_of_successful_check INNER JOIN last_task ON date_of_successful_check.task = last_task.title
+            SELECT dosc.peer AS Peer,
+                   dosc."Date" AS Date
+            FROM date_of_successful_check dosc INNER JOIN last_task ON dosc.task = last_task.title;
     END
 $tab$ LANGUAGE plpgsql;
+
+SELECT * FROM fnc_successful_checks_last_task('C');
 
 -- 10) Определить, к какому пиру стоит идти на проверку каждому обучающемуся
 -- Определять нужно исходя из рекомендаций друзей пира, т.е. нужно найти пира, проверяться у которого рекомендует наибольшее число друзей.
@@ -354,11 +359,41 @@ END;
 -- Формат вывода: процент приступивших только к первом
 
 
+SELECT * FROM fnc_successful_checks_blocks('C', 'C');
 
+DROP TABLE returns_table_successful_checks_blocks CASCADE;
+CREATE TABLE returns_table_successful_checks_blocks (Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT, Started_no_one BIGINT);
 
+CREATE FUNCTION fnc_successful_checks_blocks(block1 varchar, block2 varchar)
+RETURNS SETOF returns_table_successful_checks_blocks AS $$
+    BEGIN
+        RETURN QUERY
+        WITH startedblock1 AS (SELECT DISTINCT peer
+            FROM Checks
+            WHERE Checks.task LIKE concat('C', '%')),
+            startedblock2 AS (SELECT DISTINCT peer
+            FROM Checks
+            WHERE task LIKE concat(block2, '%')),
+            startedboth AS (SELECT DISTINCT peer
+            FROM Checks
+            WHERE task LIKE concat(block2, '%') AND task LIKE concat(block1, '%'))
 
-
-
+        SELECT Started_block1,
+               Started_block2,
+               Started_both,
+               Started_no_one
+        FROM (values((SELECT COUNT(*) * 100/8
+        FROM startedblock1),
+                      (SELECT COUNT(*)*100/8
+        FROM startedblock2),
+                     (SELECT COUNT(*)*100/8
+        FROM startedboth),
+                     (SELECT (8-COUNT(*))*100/8
+        FROM startedboth)))
+                s(Started_block1,Started_block2,Started_both, Started_no_one);
+    END
+$$
+LANGUAGE plpgsql;
 
 
 -- 12) Определить N пиров с наибольшим числом друзей
@@ -395,21 +430,31 @@ END;
 -- Также определите процент пиров, которые хоть раз проваливали проверку в свой день рождения.
 -- Формат вывода: процент успехов в день рождения, процент неуспехов в день рождения
 
-CREATE FUNCTION fnc_successful_checks_birthday(block1 varchar)
-RETURNS TABLE(SuccessfulChecks integer, UnsuccessfulChecks integer)
-AS $$
+SELECT * FROM fnc_successful_checks_birthday();
+
+DROP FUNCTION IF EXISTS fnc_successful_checks_birthday();
+
+CREATE FUNCTION fnc_successful_checks_birthday()
+RETURNS TABLE(SuccessfulDayChecks BIGINT, UnsuccessfulDayChecks BIGINT) AS $$
 DECLARE
-    checks_count integer;
+    checks_count BIGINT := (SELECT MAX(id) FROM checks);
 BEGIN
-        SELECT MAX(Checks.id) INTO STRICT checks_count
-        FROM Checks;
-        SELECT (SELECT COUNT(*)/checks_count
-        FROM Peers INNER JOIN Checks ON Peers.birthday = Checks."Date"
-        WHERE Peers.Nickname = Checks.Peer) AS SuccessfulChecks,
-                (SELECT (checks_count - COUNT(*))/checks_count
-        FROM Peers INNER JOIN Checks ON Peers.birthday = Checks."Date"
-        WHERE Peers.Nickname = Checks.Peer) AS UnsuccessfulChecks;
-    END
+    RETURN QUERY
+
+    WITH suckchecks AS (SELECT *
+    FROM Peers INNER JOIN Checks ON Peers.birthday = Checks."Date"
+    WHERE Peers.Nickname = Checks.Peer)
+
+    SELECT SuccessfulDayChecks,
+           UnsuccessfulDayChecks
+    FROM (values((SELECT COUNT(*)/checks_count * 100
+                  FROM suckchecks
+                  GROUP BY checks_count),
+                  (SELECT (checks_count - COUNT(*))/checks_count * 100
+                  FROM suckchecks
+                  GROUP BY checks_count)))
+    s(SuccessfulDayChecks, UnsuccessfulDayChecks);
+END
 $$
 LANGUAGE plpgsql;
 
@@ -449,7 +494,17 @@ END;
 -- Параметры процедуры: названия заданий 1, 2 и 3.
 -- Формат вывода: список пиров
 
+CREATE FUNCTION fnc_successful_tasks_1_2(task1 varchar, task2 varchar, task3 varchar)
+RETURNS TABLE(Peer varchar)
+AS $$
+        SELECT peer
+        FROM fnc_successful_checks() AS successful_checks
+        WHERE (successful_checks.task = task1 OR successful_checks.task = task2) AND successful_checks.task <> task3;
+$$
+LANGUAGE sql;
 
+
+SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C6_s21_matrix', 'C8_3DViewer_v1');
 -- 16) Используя рекурсивное обобщенное табличное выражение, для каждой задачи вывести кол-во предшествующих ей задач
 -- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
 -- Формат вывода: название задачи, количество предшествующих
@@ -555,7 +610,31 @@ END;
 -- 20) Определить пира, который провел сегодня в кампусе больше всего времени
 -- Формат вывода: ник пира
 
+DROP FUNCTION fnc_the_longest_interval();
 
+CREATE FUNCTION fnc_the_longest_interval()
+RETURNS TABLE(peer varchar)
+AS $$
+            WITH go_in AS (SELECT *
+            FROM timetracking
+            WHERE timetracking.state = 1),
+                 go_out AS (SELECT *
+            FROM timetracking
+            WHERE timetracking.state = 2),
+            intervals AS (SELECT go_in.peer,
+                   MAX(go_out."Time" - go_in."Time") AS interval_in_school
+            FROM go_in INNER JOIN go_out ON go_in."Date" = go_out."Date"
+            WHERE go_in."Date" = current_date
+            GROUP BY go_in.peer
+            ORDER BY interval_in_school DESC)
+
+            SELECT peer
+            FROM intervals
+            LIMIT 1;
+$$
+LANGUAGE sql;
+
+SELECT * FROM fnc_the_longest_interval();
 
 -- 21) Определить пиров, приходивших раньше заданного времени не менее N раз за всё время
 -- Параметры процедуры: время, количество раз N.
@@ -640,3 +719,53 @@ BEGIN;
 CALL pr_last_current_online('ref');
 FETCH ALL IN "ref";
 END;
+
+
+-- 24) Определить пиров, которые выходили вчера из кампуса больше чем на N минут
+-- Параметры процедуры: количество минут N.
+-- Формат вывода: список пиров
+
+DROP FUNCTION to_minutes(t time);
+
+CREATE OR REPLACE FUNCTION to_minutes(t time without time zone)
+  RETURNS integer AS
+$BODY$
+DECLARE
+    hs INTEGER := (SELECT(EXTRACT(HOUR FROM  t::time) * 60*60));
+    ms INTEGER := (SELECT (EXTRACT(MINUTES FROM t::time)));
+BEGIN
+    SELECT (hs + ms) INTO ms;
+    RETURN ms;
+END;
+$BODY$
+  LANGUAGE 'plpgsql';
+
+drop  FUNCTION fnc_interval;
+
+CREATE or replace FUNCTION fnc_interval(N int)
+RETURNS TABLE (peer varchar, time_interval time) AS $tab$
+    BEGIN
+        return query
+
+            WITH go_in AS (SELECT *
+            FROM timetracking
+            WHERE timetracking.state = 1),
+                 go_out AS (SELECT *
+            FROM timetracking
+            WHERE timetracking.state = 2)
+
+            SELECT go_in.peer
+            FROM go_in
+                INNER JOIN go_out ON go_in.peer = go_out.peer
+            WHERE go_in."Date" = go_out."Date" AND (SELECT to_minutes((go_out."Time" - go_in."Time")::time without time zone) > N);
+    END
+$tab$ LANGUAGE plpgsql;
+
+SELECT * FROM fnc_interval(12);
+
+
+-- 25) Определить для каждого месяца процент ранних входов
+-- Для каждого месяца посчитать, сколько раз люди, родившиеся в этот месяц, приходили в кампус за всё время (будем называть это общим числом входов).
+-- Для каждого месяца посчитать, сколько раз люди, родившиеся в этот месяц, приходили в кампус раньше 12:00 за всё время (будем называть это числом ранних входов).
+-- Для каждого месяца посчитать процент ранних входов в кампус относительно общего числа входов.
+-- Формат вывода: месяц, процент ранних входов

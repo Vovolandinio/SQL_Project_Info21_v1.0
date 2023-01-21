@@ -31,9 +31,6 @@ END;
 -- пользователя в текущей базе данных. Имена функций без параметров не выводить. Имена и список параметров должны выводиться в одну строку.
 -- Выходной параметр возвращает количество найденных функций.
 
-
-
-
 DROP PROCEDURE IF EXISTS pr_count_table(OUT n int);
 
 CREATE OR REPLACE PROCEDURE pr_count_table(OUT n int)
@@ -43,7 +40,8 @@ AS $$
              FROM information_schema.routines
              LEFT JOIN information_schema.parameters ON routines.specific_name=parameters.specific_name
              WHERE routines.specific_schema='public' AND parameters.data_type IS NOT NULL ORDER BY routines.routine_name, parameters.ordinal_position) as foo);
-END$$ LANGUAGE plpgsql;
+END
+    $$ LANGUAGE plpgsql;
 
 DO $$
     DECLARE res integer;

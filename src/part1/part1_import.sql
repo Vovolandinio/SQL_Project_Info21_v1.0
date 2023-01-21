@@ -11,7 +11,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- insert the absolute path to the project!!!
-SET path_to_project.const TO '/home/vladimir/Рабочий стол/SQL_Project_Info21_v1.0';
+SET path_to_project.const TO '/Users/warbirdo/Desktop/SQL_Project_Info21_v1.0';
 
 CALL pr_import_from_csv_to_table('peers',current_setting('path_to_project.const')||'/src/part1/import/peers'||'.csv',',');
 CALL pr_import_from_csv_to_table('tasks',current_setting('path_to_project.const')||'/src/part1/import/tasks'||'.csv',',');
