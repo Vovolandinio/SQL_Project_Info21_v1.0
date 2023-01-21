@@ -32,6 +32,27 @@ END;
 -- Выходной параметр возвращает количество найденных функций.
 
 
+
+
+DROP PROCEDURE IF EXISTS pr_count_table(OUT n int);
+
+CREATE OR REPLACE PROCEDURE pr_count_table(OUT n int)
+AS $$
+    BEGIN
+    n = (SELECT count(*) FROM (SELECT routines.routine_name, parameters.data_type
+             FROM information_schema.routines
+             LEFT JOIN information_schema.parameters ON routines.specific_name=parameters.specific_name
+             WHERE routines.specific_schema='public' AND parameters.data_type IS NOT NULL ORDER BY routines.routine_name, parameters.ordinal_position) as foo);
+END$$ LANGUAGE plpgsql;
+
+DO $$
+    DECLARE res integer;
+    BEGIN
+        CALL pr_count_table(res);
+        RAISE NOTICE 'Num %', res;
+    END
+$$;
+
 -- 3) Создать хранимую процедуру с выходным параметром, которая уничтожает все SQL DML триггеры в текущей базе данных.
 -- Выходной параметр возвращает количество уничтоженных триггеров.
 
@@ -76,13 +97,16 @@ AS $$
     BEGIN
 OPEN ref FOR
     SELECT routine_name,
-           routine_type
+           routine_type,
+           routine_definition
     FROM information_schema.routines
     WHERE specific_schema='public'
         AND routine_definition LIKE '%' || name || '%';
 END
     $$ LANGUAGE plpgsql;
 
+
+-- Тестовая транзакция.
 BEGIN;
 CALL pr_show_info('cursor_name', 'date');
 FETCH ALL IN "cursor_name";
