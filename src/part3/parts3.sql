@@ -364,11 +364,11 @@ END;
 
 SELECT * FROM fnc_successful_checks_blocks('C', 'C');
 
-DROP TABLE returns_table_successful_checks_blocks CASCADE;
-CREATE TABLE returns_table_successful_checks_blocks (Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT, Started_no_one BIGINT);
-
+DROP FUNCTION  fnc_successful_checks_blocks(block1 varchar, block2 varchar);
 CREATE FUNCTION fnc_successful_checks_blocks(block1 varchar, block2 varchar)
-RETURNS SETOF returns_table_successful_checks_blocks AS $$
+RETURNS TABLE(block_1 BIGINT, block_2 BIGINT, both2 BIGINT,  no_one BIGINT) AS $$
+    DECLARE
+        count_peers int := (SELECT COUNT(*) FROM peers);
     BEGIN
         RETURN QUERY
         WITH startedblock1 AS (SELECT DISTINCT peer
@@ -376,23 +376,28 @@ RETURNS SETOF returns_table_successful_checks_blocks AS $$
             WHERE Checks.task LIKE concat('C', '%')),
             startedblock2 AS (SELECT DISTINCT peer
             FROM Checks
-            WHERE task LIKE concat(block2, '%')),
+            WHERE task LIKE concat('C', '%')),
             startedboth AS (SELECT DISTINCT peer
             FROM Checks
-            WHERE task LIKE concat(block2, '%') AND task LIKE concat(block1, '%'))
+            WHERE task LIKE concat('C', '%') AND task LIKE concat('C', '%')),
+            started_one_of AS ((SELECT peer
+                               FROM startedblock1)
+                                UNION
+                                (SELECT peer
+                               FROM startedblock2))
 
         SELECT Started_block1,
                Started_block2,
                Started_both,
                Started_no_one
-        FROM (values((SELECT COUNT(*) * 100/8
+        FROM (values((SELECT COUNT(*) * 100/count_peers
         FROM startedblock1),
-                      (SELECT COUNT(*)*100/8
+                      (SELECT COUNT(*)*100/count_peers
         FROM startedblock2),
-                     (SELECT COUNT(*)*100/8
+                     (SELECT COUNT(*) * 100/count_peers
         FROM startedboth),
-                     (SELECT (8-COUNT(*))*100/8
-        FROM startedboth)))
+                     (SELECT (count_peers-COUNT(*)) * 100/count_peers
+        FROM started_one_of)))
                 s(Started_block1,Started_block2,Started_both, Started_no_one);
     END
 $$
