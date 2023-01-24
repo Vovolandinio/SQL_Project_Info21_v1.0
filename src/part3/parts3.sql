@@ -333,13 +333,24 @@ SELECT * FROM fnc_successful_checks_last_task('C');
 -- Определять нужно исходя из рекомендаций друзей пира, т.е. нужно найти пира, проверяться у которого рекомендует наибольшее число друзей.
 -- Формат вывода: ник пира, ник найденного проверяющего
 
-
 DROP PROCEDURE IF EXISTS pr_recommendation_peer(IN ref refcursor);
 
-CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN ref refcursor)
+CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN checking_peer varchar, OUT checked_peer varchar)
 AS $$
 BEGIN
   --  OPEN ref FOR
+  -- work OK but idk why procedure is not working...:(
+    checked_peer := (WITH find_friends AS (SELECT friends.peer2
+                              FROM friends
+                              WHERE friends.peer1 NOT LIKE checking_peer),
+             recommended_peers AS (SELECT recommendations.recommendedpeer
+                                    FROM recommendations INNER JOIN find_friends ON recommendations.peer = find_friends.peer2
+                                    WHERE recommendations.recommendedpeer NOT LIKE checking_peer)SELECT recommended_peers.recommendedpeer,
+                                     COUNT(*)
+                              FROM recommended_peers
+                              GROUP BY recommended_peers.recommendedpeer
+                              ORDER BY 2 DESC
+                              LIMIT 1);
 
 END;
 $$ LANGUAGE plpgsql;
@@ -373,18 +384,20 @@ RETURNS TABLE(block_1 BIGINT, block_2 BIGINT, both2 BIGINT,  no_one BIGINT) AS $
         RETURN QUERY
         WITH startedblock1 AS (SELECT DISTINCT peer
             FROM Checks
-            WHERE Checks.task LIKE concat('C', '%')),
+            WHERE Checks.task LIKE concat(block1, '%')),
             startedblock2 AS (SELECT DISTINCT peer
             FROM Checks
-            WHERE task LIKE concat('C', '%')),
+            WHERE task LIKE concat(block2, '%')),
             startedboth AS (SELECT DISTINCT peer
             FROM Checks
-            WHERE task LIKE concat('C', '%') AND task LIKE concat('C', '%')),
+            WHERE task LIKE concat(block1, '%') AND task LIKE concat(block2, '%')),
             started_one_of AS ((SELECT peer
                                FROM startedblock1)
                                 UNION
                                 (SELECT peer
                                FROM startedblock2))
+
+ --       SELECT * FROM started_one_of
 
         SELECT Started_block1,
                Started_block2,
@@ -443,7 +456,7 @@ SELECT * FROM fnc_successful_checks_birthday();
 DROP FUNCTION IF EXISTS fnc_successful_checks_birthday();
 
 CREATE FUNCTION fnc_successful_checks_birthday()
-RETURNS TABLE(SuccessfulDayChecks BIGINT, UnsuccessfulDayChecks BIGINT) AS $$
+RETURNS TABLE(SuccessfulDayChecks1 BIGINT, UnsuccessfulDayChecks1 BIGINT) AS $$
 DECLARE
     checks_count BIGINT := (SELECT MAX(id) FROM checks);
 BEGIN
@@ -451,7 +464,8 @@ BEGIN
 
     WITH suckchecks AS (SELECT *
     FROM Peers INNER JOIN Checks ON Peers.birthday = Checks."Date"
-    WHERE Peers.Nickname = Checks.Peer)
+    INNER JOIN fnc_successful_checks() AS all_successful_checks ON all_successful_checks.peer = peers.nickname
+    WHERE Peers.Nickname = Checks.Peer AND all_successful_checks.task = checks.task)
 
     SELECT SuccessfulDayChecks,
            UnsuccessfulDayChecks
