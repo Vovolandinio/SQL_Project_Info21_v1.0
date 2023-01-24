@@ -38,6 +38,10 @@ SELECT * FROM fnc_transferred_points();
 -- В таблицу включать только задания, успешно прошедшие проверку (определять по таблице Checks).
 -- Одна задача может быть успешно выполнена несколько раз. В таком случае в таблицу включать все успешные проверки.
 
+-- 2) Написать функцию, которая возвращает таблицу вида: ник пользователя, название проверенного задания, кол-во полученного XP
+-- В таблицу включать только задания, успешно прошедшие проверку (определять по таблице Checks).
+-- Одна задача может быть успешно выполнена несколько раз. В таком случае в таблицу включать все успешные проверки.
+
 drop  FUNCTION fnc_successful_checks;
 
 CREATE or replace FUNCTION fnc_successful_checks()
@@ -47,8 +51,11 @@ RETURNS TABLE(peer varchar, task varchar, xpamount integer) AS $tab$
             WITH one AS (SELECT checks.id
             FROM checks
             INNER JOIN p2p ON checks.id = p2p."Check"
-            INNER JOIN Verter ON checks.id = Verter."Check"
-            WHERE p2p.state = 'Success' AND Verter.state = 'Success'
+            LEFT JOIN Verter ON checks.id = Verter."Check"
+            WHERE p2p.state = 'Success' AND checks.task > 'C6_s21_matrix'
+                  OR
+                  p2p.state = 'Success' AND Verter.state = 'Success'
+
             GROUP BY checks.id)
 
             SELECT checks.peer,
