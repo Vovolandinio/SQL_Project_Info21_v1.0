@@ -707,6 +707,7 @@ END;
 -- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_last_current_online(IN ref refcursor);
 
+
 -- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_last_current_online(IN ref refcursor)
 AS $$
