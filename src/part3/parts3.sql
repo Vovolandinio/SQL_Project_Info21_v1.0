@@ -531,6 +531,33 @@ SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C6_s21_matrix', 'C
 -- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
 -- Формат вывода: название задачи, количество предшествующих
 
+WITH RECURSIVE r AS (
+   SELECT
+          CASE WHEN (tasks.parenttask IS NULL) THEN 0
+          ELSE 1
+          END AS counter,
+	      tasks.title,
+	      tasks.parenttask AS current_tasks,
+	      tasks.parenttask
+   FROM tasks
+
+   UNION ALL
+
+   SELECT
+		  (CASE WHEN child.parenttask IS NOT NULL THEN counter + 1
+           ELSE counter
+           END) AS counter,
+		  child.title AS title,
+		  child.parenttask AS current_tasks,
+	      parrent.title AS parrenttask
+    FROM tasks AS child
+    CROSS JOIN r AS parrent
+	WHERE parrent.parenttask IS NOT NULL AND parrent.title < child.title
+)
+
+SELECT  *
+FROM r;
+
 
 -- 17) Найти "удачные" для проверок дни. День считается "удачным", если в нем есть хотя бы N идущих подряд успешных проверки
 -- Параметры процедуры: количество идущих подряд успешных проверок N.
@@ -762,7 +789,7 @@ END;
 $BODY$
   LANGUAGE 'plpgsql';
 
-drop  FUNCTION fnc_interval;
+DROP FUNCTION fnc_interval;
 
 CREATE or replace FUNCTION fnc_interval(N int)
 RETURNS TABLE (peer varchar, time_interval time) AS $tab$
@@ -776,7 +803,8 @@ RETURNS TABLE (peer varchar, time_interval time) AS $tab$
             FROM timetracking
             WHERE timetracking.state = 2)
 
-            SELECT go_in.peer
+            SELECT go_in.peer,
+                   ((go_out."Time" - go_in."Time")::time without time zone)
             FROM go_in
                 INNER JOIN go_out ON go_in.peer = go_out.peer
             WHERE go_in."Date" = go_out."Date" AND (SELECT to_minutes((go_out."Time" - go_in."Time")::time without time zone) > N);
