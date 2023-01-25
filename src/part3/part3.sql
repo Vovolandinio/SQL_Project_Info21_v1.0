@@ -728,6 +728,7 @@ FETCH ALL IN "ref";
 END;
 
 
+
 -- 24) Определить пиров, которые выходили вчера из кампуса больше чем на N минут
 -- Параметры процедуры: количество минут N.
 -- Формат вывода: список пиров
@@ -747,7 +748,7 @@ END;
 $BODY$
   LANGUAGE 'plpgsql';
 
-drop  FUNCTION fnc_interval;
+DROP FUNCTION fnc_interval;
 
 CREATE or replace FUNCTION fnc_interval(N int)
 RETURNS TABLE (peer varchar, time_interval time) AS $tab$
@@ -761,7 +762,8 @@ RETURNS TABLE (peer varchar, time_interval time) AS $tab$
             FROM timetracking
             WHERE timetracking.state = 2)
 
-            SELECT go_in.peer
+            SELECT go_in.peer,
+                   ((go_out."Time" - go_in."Time")::time without time zone)
             FROM go_in
                 INNER JOIN go_out ON go_in.peer = go_out.peer
             WHERE go_in."Date" = go_out."Date" AND (SELECT to_minutes((go_out."Time" - go_in."Time")::time without time zone) > N);
@@ -769,7 +771,6 @@ RETURNS TABLE (peer varchar, time_interval time) AS $tab$
 $tab$ LANGUAGE plpgsql;
 
 SELECT * FROM fnc_interval(12);
-
 
 -- 25) Определить для каждого месяца процент ранних входов
 -- Для каждого месяца посчитать, сколько раз люди, родившиеся в этот месяц, приходили в кампус за всё время (будем называть это общим числом входов).
