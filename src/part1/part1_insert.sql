@@ -39,7 +39,7 @@ VALUES (0, 'Diluc', 'C2_SimpleBashUtils', '2022-08-30'),
        (9, 'Diluc', 'C6_s21_matrix', '2022-09-26'),
        (10, 'Diluc', 'C7_SmartCalc_v1.0', '2022-10-01'),
        (11, 'Diluc', 'C8_3DViewer_v1.0', '2022-10-10'),
-       (12, 'Keqing', 'C3_s21_string.0', '2022-10-20');
+       (12, 'Keqing', 'C3_s21_string+', '2022-10-20');
 
 
 
@@ -117,7 +117,8 @@ VALUES ('Bennett', 'Diluc', 2),
        ('Zhongli', 'Klee', 1),
        ('Bennett', 'Dori', 1),
        ('Dori', 'Keqing', 1),
-       ('Diluc', 'Raiden', 2);
+       ('Diluc', 'Raiden', 2),
+       ('Keqing', 'Raiden', 2);
 
 
 INSERT INTO Friends (Peer1, Peer2)
