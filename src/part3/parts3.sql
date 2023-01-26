@@ -552,9 +552,14 @@ WITH RECURSIVE r AS (
 	      parrent.title AS parrenttask
     FROM tasks AS child
     CROSS JOIN r AS parrent
-	WHERE parrent.parenttask NOT LIKE 'C2_SimpleBashUtils' AND parrent.title < child.title
+	WHERE parrent.title LIKE child.parenttask
 )
+-- parrent.parenttask NOT LIKE 'C2_SimpleBashUtils' AND
+-- AND parrent.title < child.title AND
 
+-- SELECT  *
+-- FROM r
+-- nWHERE title LIKE 'C5_s21_decimal';
 SELECT  MAX(counter),
         title
 FROM r
