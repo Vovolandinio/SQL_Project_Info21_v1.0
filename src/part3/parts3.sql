@@ -333,7 +333,12 @@ SELECT * FROM fnc_successful_checks_last_task('C');
 -- Определять нужно исходя из рекомендаций друзей пира, т.е. нужно найти пира, проверяться у которого рекомендует наибольшее число друзей.
 -- Формат вывода: ник пира, ник найденного проверяющего
 
-DROP PROCEDURE IF EXISTS pr_recommendation_peer(IN ref refcursor);
+
+SELECT friends.peer2
+FROM friends
+WHERE friends.peer1 NOT LIKE 'Diluc'
+
+DROP PROCEDURE IF EXISTS pr_recommendation_peer(IN checking_peer varchar, OUT checked_peer varchar);
 
 CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN checking_peer varchar, OUT checked_peer varchar)
 AS $$
@@ -342,17 +347,18 @@ BEGIN
   -- work OK but idk why procedure is not working...:(
     checked_peer := (WITH find_friends AS (SELECT friends.peer2
                               FROM friends
-                              WHERE friends.peer1 NOT LIKE checking_peer),
+                              WHERE friends.peer1 NOT LIKE 'Diluc'),
              recommended_peers AS (SELECT recommendations.recommendedpeer
                                     FROM recommendations INNER JOIN find_friends ON recommendations.peer = find_friends.peer2
-                                    WHERE recommendations.recommendedpeer NOT LIKE checking_peer)SELECT recommended_peers.recommendedpeer,
+                                    WHERE recommendations.recommendedpeer NOT LIKE 'Diluc')
+                     SELECT recommended_peers.recommendedpeer,
                                      COUNT(*)
                               FROM recommended_peers
                               GROUP BY recommended_peers.recommendedpeer
                               ORDER BY 2 DESC
                               LIMIT 1);
 
-END;
+END
 $$ LANGUAGE plpgsql;
 
 BEGIN;
@@ -531,40 +537,43 @@ SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C6_s21_matrix', 'C
 -- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
 -- Формат вывода: название задачи, количество предшествующих
 
-WITH RECURSIVE r AS (
-   SELECT
-          CASE WHEN (tasks.parenttask IS NULL) THEN 0
-          ELSE 1
-          END AS counter,
-	      tasks.title,
-	      tasks.parenttask AS current_tasks,
-	      tasks.parenttask
-   FROM tasks
+SELECT * FROM fnc_count_parent_tasks();
 
-   UNION ALL
+-- Удаление функции.
+DROP FUNCTION IF EXISTS fnc_count_parent_tasks();
+-- Создание функции.
+CREATE OR REPLACE FUNCTION fnc_count_parent_tasks()
+RETURNS TABLE (Task varchar, PrevCount integer) AS $$
+        WITH RECURSIVE r AS (
+           SELECT
+                  CASE WHEN (tasks.parenttask IS NULL) THEN 0
+                  ELSE 1
+                  END AS counter,
+                  tasks.title,
+                  tasks.parenttask AS current_tasks,
+                  tasks.parenttask
+           FROM tasks
 
-   SELECT
-		  (CASE WHEN child.parenttask IS NOT NULL THEN counter + 1
-           ELSE counter
-           END) AS counter,
-		  child.title AS title,
-		  child.parenttask AS current_tasks,
-	      parrent.title AS parrenttask
-    FROM tasks AS child
-    CROSS JOIN r AS parrent
-	WHERE parrent.title LIKE child.parenttask
-)
--- parrent.parenttask NOT LIKE 'C2_SimpleBashUtils' AND
--- AND parrent.title < child.title AND
+           UNION ALL
 
--- SELECT  *
--- FROM r
--- nWHERE title LIKE 'C5_s21_decimal';
-SELECT  MAX(counter),
-        title
-FROM r
-GROUP BY title;
-
+           SELECT
+                  (CASE WHEN child.parenttask IS NOT NULL THEN counter + 1
+                   ELSE counter
+                   END) AS counter,
+                  child.title AS title,
+                  child.parenttask AS current_tasks,
+                  parrent.title AS parrenttask
+            FROM tasks AS child
+            CROSS JOIN r AS parrent
+            WHERE parrent.title LIKE child.parenttask
+        )
+    SELECT  title AS Task,
+            MAX(counter) AS PrevCount
+    FROM r
+    GROUP BY title
+    ORDER BY 1;
+    $$
+LANGUAGE sql;
 
 -- 17) Найти "удачные" для проверок дни. День считается "удачным", если в нем есть хотя бы N идущих подряд успешных проверки
 -- Параметры процедуры: количество идущих подряд успешных проверок N.
