@@ -552,11 +552,13 @@ WITH RECURSIVE r AS (
 	      parrent.title AS parrenttask
     FROM tasks AS child
     CROSS JOIN r AS parrent
-	WHERE parrent.parenttask IS NOT NULL AND parrent.title < child.title
+	WHERE parrent.parenttask NOT LIKE 'C2_SimpleBashUtils' AND parrent.title < child.title
 )
 
-SELECT  *
-FROM r;
+SELECT  MAX(counter),
+        title
+FROM r
+GROUP BY title;
 
 
 -- 17) Найти "удачные" для проверок дни. День считается "удачным", если в нем есть хотя бы N идущих подряд успешных проверки
