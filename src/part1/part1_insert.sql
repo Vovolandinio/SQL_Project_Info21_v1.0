@@ -118,7 +118,7 @@ VALUES ('Bennett', 'Diluc', 2),
        ('Bennett', 'Dori', 1),
        ('Dori', 'Keqing', 1),
        ('Diluc', 'Raiden', 2),
-       ('Keqing', 'Raiden', 2);
+       ('Keqing', 'Raiden', 1);
 
 
 INSERT INTO Friends (Peer1, Peer2)
