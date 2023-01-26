@@ -17,7 +17,7 @@ VALUES ('C2_SimpleBashUtils', NULL, 250),
        ('C7_SmartCalc_v1.0', 'C6_s21_matrix', 500),
        ('C8_3DViewer_v1.0', 'C7_SmartCalc_v1.0', 750),
        ('CPP1_s21_matrix+', 'C8_3DViewer_v1.0', 300),
-       ('CPP2_s21_containers', 'CPP1_s21_matrix.0', 350),
+       ('CPP2_s21_containers', 'CPP1_s21_matrix+', 350),
        ('D01_Linux', 'C2_SimpleBashUtils', 300),
        ('DO2_Linux_Network','D01_Linux', 250),
        ('DO3_Linux_Monitoring','DO2_Linux_Network', 350),
@@ -154,6 +154,7 @@ VALUES (0, 250),
        (9, 200),
        (10, 500),
        (11, 750);
+
 
 
 INSERT INTO TimeTracking (Peer, "Date", "Time", State)
