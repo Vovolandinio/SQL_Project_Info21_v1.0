@@ -17,7 +17,13 @@ VALUES ('C2_SimpleBashUtils', NULL, 250),
        ('C7_SmartCalc_v1.0', 'C6_s21_matrix', 500),
        ('C8_3DViewer_v1.0', 'C7_SmartCalc_v1.0', 750),
        ('CPP1_s21_matrix+', 'C8_3DViewer_v1.0', 300),
-       ('D01_Linux', 'C2_SimpleBashUtils', 300);
+       ('CPP2_s21_containers', 'CPP1_s21_matrix.0', 350),
+       ('D01_Linux', 'C2_SimpleBashUtils', 300),
+       ('DO2_Linux_Network','D01_Linux', 250),
+       ('DO3_Linux_Monitoring','DO2_Linux_Network', 350),
+       ('DO5_SimpleDocker','DO3_Linux_Monitoring', 300),
+       ('DO6_CICD','DO5_SimpleDocker', 300);
+
 
 
 INSERT INTO Checks (ID, Peer, Task, "Date")
@@ -32,7 +38,8 @@ VALUES (0, 'Diluc', 'C2_SimpleBashUtils', '2022-08-30'),
        (8, 'Diluc', 'C5_s21_decimal', '2022-09-25'),
        (9, 'Diluc', 'C6_s21_matrix', '2022-09-26'),
        (10, 'Diluc', 'C7_SmartCalc_v1.0', '2022-10-01'),
-       (11, 'Diluc', 'C8_3DViewer_v1.0', '2022-10-10');
+       (11, 'Diluc', 'C8_3DViewer_v1.0', '2022-10-10'),
+       (12, 'Keqing', 'C3_s21_string.0', '2022-10-20');
 
 
 
@@ -60,29 +67,41 @@ VALUES (0, 'Bennett', 'Start', '13:00'),
        (10, 'Keqing', 'Start', '16:00'),
        (10, 'Keqing', 'Success', '16:50'),
        (11, 'Klee', 'Start', '10:00'),
-       (11, 'Klee', 'Success', '11:00');
+       (11, 'Klee', 'Success', '11:00'),
+       (12, 'Raiden', 'Start', '14:00'),
+       (12, 'Raiden', 'Success', '14:30');
 
 
 INSERT INTO Verter ("Check", State, "Time")
 VALUES (0, 'Start', '12:31'),
        (0, 'Success', '12:35'),
+
        (1, 'Start', '15:31'),
        (1, 'Success', '15:35'),
+
        (2, 'Start', '19:31'),
        (2, 'Failure', '19:33'),
+
        (4, 'Start', '11:32'),
        (4, 'Success', '11:40'),
+
        (5, 'Start', '21:02'),
        (5, 'Success', '21:10'),
 
        (6, 'Start', '10:41'),
        (6, 'Success', '10:45'),
+
        (7, 'Start', '12:31'),
        (7, 'Success','12:33'),
+
        (8, 'Start', '18:31'),
        (8, 'Success','18:33'),
+
        (9, 'Start', '15:31'),
-       (9, 'Success','15:33');
+       (9, 'Success','15:33'),
+
+       (12,'Start','14:30'),
+       (12,'Failure','14:33');
 
 
 INSERT INTO TransferredPoints (CheckingPeer, CheckedPeer, PointsAmount)
