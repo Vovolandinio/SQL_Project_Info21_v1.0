@@ -42,7 +42,7 @@ SELECT * FROM fnc_transferred_points();
 -- В таблицу включать только задания, успешно прошедшие проверку (определять по таблице Checks).
 -- Одна задача может быть успешно выполнена несколько раз. В таком случае в таблицу включать все успешные проверки.
 
-drop  FUNCTION fnc_successful_checks;
+DROP FUNCTION IF EXISTS fnc_successful_checks;
 
 CREATE or replace FUNCTION fnc_successful_checks()
 RETURNS TABLE(peer varchar, task varchar, xpamount integer) AS $tab$
@@ -501,6 +501,8 @@ END;
 -- Параметры процедуры: названия заданий 1, 2 и 3.
 -- Формат вывода: список пиров
 
+DROP FUNCTION IF EXISTS fnc_successful_tasks_1_2(task1 varchar, task2 varchar, task3 varchar);
+
 CREATE FUNCTION fnc_successful_tasks_1_2(task1 varchar, task2 varchar, task3 varchar)
 RETURNS TABLE(Peer varchar)
 AS $$
@@ -510,13 +512,11 @@ AS $$
 $$
 LANGUAGE sql;
 
-
 SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C6_s21_matrix', 'C8_3DViewer_v1');
 
 -- 16) Используя рекурсивное обобщенное табличное выражение, для каждой задачи вывести кол-во предшествующих ей задач
 -- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
 -- Формат вывода: название задачи, количество предшествующих
-
 
 -- Удаление функции.
 DROP FUNCTION IF EXISTS fnc_count_parent_tasks();
