@@ -512,10 +512,49 @@ LANGUAGE sql;
 
 
 SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C6_s21_matrix', 'C8_3DViewer_v1');
+
 -- 16) Используя рекурсивное обобщенное табличное выражение, для каждой задачи вывести кол-во предшествующих ей задач
 -- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
 -- Формат вывода: название задачи, количество предшествующих
 
+
+-- Удаление функции.
+DROP FUNCTION IF EXISTS fnc_count_parent_tasks();
+-- Создание функции.
+CREATE OR REPLACE FUNCTION fnc_count_parent_tasks()
+RETURNS TABLE (Task varchar, PrevCount integer) AS $$
+        WITH RECURSIVE r AS (
+           SELECT
+                  CASE WHEN (tasks.parenttask IS NULL) THEN 0
+                  ELSE 1
+                  END AS counter,
+                  tasks.title,
+                  tasks.parenttask AS current_tasks,
+                  tasks.parenttask
+           FROM tasks
+
+           UNION ALL
+
+           SELECT
+                  (CASE WHEN child.parenttask IS NOT NULL THEN counter + 1
+                   ELSE counter
+                   END) AS counter,
+                  child.title AS title,
+                  child.parenttask AS current_tasks,
+                  parrent.title AS parrenttask
+            FROM tasks AS child
+            CROSS JOIN r AS parrent
+            WHERE parrent.title LIKE child.parenttask
+        )
+    SELECT  title AS Task,
+            MAX(counter) AS PrevCount
+    FROM r
+    GROUP BY title
+    ORDER BY 1;
+    $$
+LANGUAGE sql;
+
+SELECT * FROM fnc_count_parent_tasks();
 
 -- 17) Найти "удачные" для проверок дни. День считается "удачным", если в нем есть хотя бы N идущих подряд успешных проверки
 -- Параметры процедуры: количество идущих подряд успешных проверок N.
