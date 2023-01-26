@@ -767,8 +767,6 @@ CALL pr_last_current_online('ref');
 FETCH ALL IN "ref";
 END;
 
-
-
 -- 24) Определить пиров, которые выходили вчера из кампуса больше чем на N минут
 -- Параметры процедуры: количество минут N.
 -- Формат вывода: список пиров
@@ -813,10 +811,38 @@ $tab$ LANGUAGE plpgsql;
 SELECT * FROM fnc_interval(12);
 
 
-
-
 -- 25) Определить для каждого месяца процент ранних входов
 -- Для каждого месяца посчитать, сколько раз люди, родившиеся в этот месяц, приходили в кампус за всё время (будем называть это общим числом входов).
 -- Для каждого месяца посчитать, сколько раз люди, родившиеся в этот месяц, приходили в кампус раньше 12:00 за всё время (будем называть это числом ранних входов).
 -- Для каждого месяца посчитать процент ранних входов в кампус относительно общего числа входов.
 -- Формат вывода: месяц, процент ранних входов
+
+
+DROP PROCEDURE IF EXISTS early_entry;
+
+CREATE OR REPLACE PROCEDURE early_entry(ref refcursor)
+AS $$
+BEGIN
+OPEN ref FOR
+   WITH main AS (SELECT timeTrack.peer,
+                        timeTrack.time,
+                        date_part('month', "Date") AS month
+        FROM (SELECT peer, "Date", min("Time") AS time
+              FROM timetracking
+              GROUP BY peer, "Date"
+              ORDER BY "Date") AS timeTrack
+            INNER JOIN peers ON timeTrack.peer = peers.nickname
+        AND date_part('month', timeTrack."Date") = date_part('month',peers.birthday)),
+
+       total_ins AS (SELECT month,
+                            count(month) AS total
+                     FROM main
+                     GROUP BY month
+                     ORDER BY month)
+END;
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+CALL early_entry('ref');
+FETCH ALL IN "ref";
+END;
