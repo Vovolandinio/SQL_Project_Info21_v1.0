@@ -38,7 +38,11 @@ SELECT * FROM fnc_transferred_points();
 -- В таблицу включать только задания, успешно прошедшие проверку (определять по таблице Checks).
 -- Одна задача может быть успешно выполнена несколько раз. В таком случае в таблицу включать все успешные проверки.
 
-drop  FUNCTION fnc_successful_checks;
+-- 2) Написать функцию, которая возвращает таблицу вида: ник пользователя, название проверенного задания, кол-во полученного XP
+-- В таблицу включать только задания, успешно прошедшие проверку (определять по таблице Checks).
+-- Одна задача может быть успешно выполнена несколько раз. В таком случае в таблицу включать все успешные проверки.
+
+DROP FUNCTION IF EXISTS fnc_successful_checks;
 
 CREATE or replace FUNCTION fnc_successful_checks()
 RETURNS TABLE(peer varchar, task varchar, xpamount integer) AS $tab$
@@ -134,7 +138,7 @@ CALL pr_success_percent('ref');
 FETCH ALL IN "ref";
 END;
 
--- 5) Посчитать изменение в количестве пир поинтов каждого пира по таблице TransferredPoints
+--- 5) Посчитать изменение в количестве пир поинтов каждого пира по таблице TransferredPoints
 -- Результат вывести отсортированным по изменению числа поинтов.
 -- Формат вывода: ник пира, изменение в количество пир поинтов
 
@@ -305,25 +309,12 @@ CREATE or replace FUNCTION fnc_successful_checks_last_task(mytask varchar)
 RETURNS TABLE(peer varchar, "date" date) AS $tab$
     BEGIN
         return query
-            WITH one AS (SELECT *
-                        FROM tasks
-                        WHERE title LIKE concat(mytask, '%')
-                             AND title NOT LIKE concat('CPP', '%')),
-            last_task AS (SELECT MAX(title) AS title
-                        FROM one),
-            date_of_successful_check AS (SELECT checks.peer,
-                                                checks.task,
-                                                checks."Date"
-                        FROM checks
-                        INNER JOIN p2p ON checks.id = p2p."Check"
---                         INNER JOIN Verter ON checks.id = Verter."Check"
-                        WHERE p2p.state = 'Success'
---                           AND Verter.state = 'Success'
-                        GROUP BY checks.id)
-
-            SELECT dosc.peer AS Peer,
-                   dosc."Date" AS Date
-            FROM date_of_successful_check dosc INNER JOIN last_task ON dosc.task = last_task.title;
+            WITH tasks_current_block AS (SELECT *
+                                         FROM tasks
+                                         WHERE tasks.title LIKE 'C%' AND mytask NOT LIKE 'CPP'
+                                                OR
+                                               tasks.title LIKE 'CPP%' AND mytask LIKE 'CPP'),
+                last/_
     END
 $tab$ LANGUAGE plpgsql;
 
@@ -334,31 +325,48 @@ SELECT * FROM fnc_successful_checks_last_task('C');
 -- Формат вывода: ник пира, ник найденного проверяющего
 
 
-SELECT friends.peer2
-FROM friends
-WHERE friends.peer1 NOT LIKE 'Diluc'
-
-DROP PROCEDURE IF EXISTS pr_recommendation_peer(IN checking_peer varchar, OUT checked_peer varchar);
+-- написать правильно вызов функции :(
 
 CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN checking_peer varchar, OUT checked_peer varchar)
+                 AS $$
+                 BEGIN
+                   --  OPEN ref FOR
+                   -- work OK but idk why procedure is not working...:(
+                     checked_peer := (WITH find_friends AS (SELECT friends.peer2
+                                               FROM friends
+                                               WHERE friends.peer1 NOT LIKE 'Diluc'),
+                                      recommended_peers AS (SELECT recommendations.recommendedpeer
+                                                             FROM recommendations INNER JOIN find_friends
+                                                                 ON recommendations.peer = find_friends.peer2
+                                                             WHERE recommendations.recommendedpeer NOT LIKE 'Diluc')
+                                      SELECT recommended_peers.recommendedpeer,
+                                             COUNT(*)
+                                      FROM recommended_peers
+                                      GROUP BY recommended_peers.recommendedpeer
+                                      ORDER BY 2 DESC
+                                      LIMIT 1);
+
+                 END
+                 $$ LANGUAGE plpgsql;
+
+
+DO $$
+    DECLARE res varchar;
+    BEGIN
+        CALL pr_recommendation_peer('Diluc', res);
+
+    END
+$$;
+
+
+DROP PROCEDURE IF EXISTS pr_recommendation_peer(IN ref refcursor);
+
+CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN ref refcursor)
 AS $$
 BEGIN
   --  OPEN ref FOR
-  -- work OK but idk why procedure is not working...:(
-    checked_peer := (WITH find_friends AS (SELECT friends.peer2
-                              FROM friends
-                              WHERE friends.peer1 NOT LIKE 'Diluc'),
-             recommended_peers AS (SELECT recommendations.recommendedpeer
-                                    FROM recommendations INNER JOIN find_friends ON recommendations.peer = find_friends.peer2
-                                    WHERE recommendations.recommendedpeer NOT LIKE 'Diluc')
-                     SELECT recommended_peers.recommendedpeer,
-                                     COUNT(*)
-                              FROM recommended_peers
-                              GROUP BY recommended_peers.recommendedpeer
-                              ORDER BY 2 DESC
-                              LIMIT 1);
 
-END
+END;
 $$ LANGUAGE plpgsql;
 
 BEGIN;
@@ -381,42 +389,35 @@ END;
 
 SELECT * FROM fnc_successful_checks_blocks('C', 'C');
 
-DROP FUNCTION  fnc_successful_checks_blocks(block1 varchar, block2 varchar);
+DROP TABLE returns_table_successful_checks_blocks CASCADE;
+CREATE TABLE returns_table_successful_checks_blocks (Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT, Started_no_one BIGINT);
+
 CREATE FUNCTION fnc_successful_checks_blocks(block1 varchar, block2 varchar)
-RETURNS TABLE(block_1 BIGINT, block_2 BIGINT, both2 BIGINT,  no_one BIGINT) AS $$
-    DECLARE
-        count_peers int := (SELECT COUNT(*) FROM peers);
+RETURNS SETOF returns_table_successful_checks_blocks AS $$
     BEGIN
         RETURN QUERY
         WITH startedblock1 AS (SELECT DISTINCT peer
             FROM Checks
-            WHERE Checks.task LIKE concat(block1, '%')),
+            WHERE Checks.task LIKE concat('C', '%')),
             startedblock2 AS (SELECT DISTINCT peer
             FROM Checks
             WHERE task LIKE concat(block2, '%')),
             startedboth AS (SELECT DISTINCT peer
             FROM Checks
-            WHERE task LIKE concat(block1, '%') AND task LIKE concat(block2, '%')),
-            started_one_of AS ((SELECT peer
-                               FROM startedblock1)
-                                UNION
-                                (SELECT peer
-                               FROM startedblock2))
-
- --       SELECT * FROM started_one_of
+            WHERE task LIKE concat(block2, '%') AND task LIKE concat(block1, '%'))
 
         SELECT Started_block1,
                Started_block2,
                Started_both,
                Started_no_one
-        FROM (values((SELECT COUNT(*) * 100/count_peers
+        FROM (values((SELECT COUNT(*) * 100/8
         FROM startedblock1),
-                      (SELECT COUNT(*)*100/count_peers
+                      (SELECT COUNT(*)*100/8
         FROM startedblock2),
-                     (SELECT COUNT(*) * 100/count_peers
+                     (SELECT COUNT(*)*100/8
         FROM startedboth),
-                     (SELECT (count_peers-COUNT(*)) * 100/count_peers
-        FROM started_one_of)))
+                     (SELECT (8-COUNT(*))*100/8
+        FROM startedboth)))
                 s(Started_block1,Started_block2,Started_both, Started_no_one);
     END
 $$
@@ -462,7 +463,7 @@ SELECT * FROM fnc_successful_checks_birthday();
 DROP FUNCTION IF EXISTS fnc_successful_checks_birthday();
 
 CREATE FUNCTION fnc_successful_checks_birthday()
-RETURNS TABLE(SuccessfulDayChecks1 BIGINT, UnsuccessfulDayChecks1 BIGINT) AS $$
+RETURNS TABLE(SuccessfulDayChecks BIGINT, UnsuccessfulDayChecks BIGINT) AS $$
 DECLARE
     checks_count BIGINT := (SELECT MAX(id) FROM checks);
 BEGIN
@@ -470,8 +471,7 @@ BEGIN
 
     WITH suckchecks AS (SELECT *
     FROM Peers INNER JOIN Checks ON Peers.birthday = Checks."Date"
-    INNER JOIN fnc_successful_checks() AS all_successful_checks ON all_successful_checks.peer = peers.nickname
-    WHERE Peers.Nickname = Checks.Peer AND all_successful_checks.task = checks.task)
+    WHERE Peers.Nickname = Checks.Peer)
 
     SELECT SuccessfulDayChecks,
            UnsuccessfulDayChecks
@@ -522,22 +522,27 @@ END;
 -- Параметры процедуры: названия заданий 1, 2 и 3.
 -- Формат вывода: список пиров
 
+
+-- проверить правильность вывода !!!
+
+DROP FUNCTION IF EXISTS fnc_successful_tasks_1_2(task1 varchar, task2 varchar, task3 varchar);
+
 CREATE FUNCTION fnc_successful_tasks_1_2(task1 varchar, task2 varchar, task3 varchar)
 RETURNS TABLE(Peer varchar)
 AS $$
         SELECT peer
         FROM fnc_successful_checks() AS successful_checks
-        WHERE (successful_checks.task = task1 OR successful_checks.task = task2) AND successful_checks.task <> task3;
+        WHERE (successful_checks.task LIKE task1 OR successful_checks.task LIKE task2) AND successful_checks.task NOT LIKE task3;
 $$
 LANGUAGE sql;
 
-
 SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C6_s21_matrix', 'C8_3DViewer_v1');
+
 -- 16) Используя рекурсивное обобщенное табличное выражение, для каждой задачи вывести кол-во предшествующих ей задач
 -- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
 -- Формат вывода: название задачи, количество предшествующих
 
-SELECT * FROM fnc_count_parent_tasks();
+-- вроде норм? проверь плз
 
 -- Удаление функции.
 DROP FUNCTION IF EXISTS fnc_count_parent_tasks();
@@ -574,6 +579,8 @@ RETURNS TABLE (Task varchar, PrevCount integer) AS $$
     ORDER BY 1;
     $$
 LANGUAGE sql;
+
+SELECT * FROM fnc_count_parent_tasks();
 
 -- 17) Найти "удачные" для проверок дни. День считается "удачным", если в нем есть хотя бы N идущих подряд успешных проверки
 -- Параметры процедуры: количество идущих подряд успешных проверок N.
@@ -765,6 +772,7 @@ END;
 -- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_last_current_online(IN ref refcursor);
 
+
 -- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_last_current_online(IN ref refcursor)
 AS $$
@@ -784,7 +792,6 @@ BEGIN;
 CALL pr_last_current_online('ref');
 FETCH ALL IN "ref";
 END;
-
 
 -- 24) Определить пиров, которые выходили вчера из кампуса больше чем на N минут
 -- Параметры процедуры: количество минут N.
@@ -835,3 +842,44 @@ SELECT * FROM fnc_interval(12);
 -- Для каждого месяца посчитать, сколько раз люди, родившиеся в этот месяц, приходили в кампус раньше 12:00 за всё время (будем называть это числом ранних входов).
 -- Для каждого месяца посчитать процент ранних входов в кампус относительно общего числа входов.
 -- Формат вывода: месяц, процент ранних входов
+
+
+--оформить процедуру чтобы выводила таблицу значений
+
+DROP PROCEDURE IF EXISTS early_entry;
+
+CREATE OR REPLACE PROCEDURE early_entry(ref refcursor)
+AS $$
+BEGIN
+OPEN ref FOR
+    WITH peers_birthdays AS (SELECT nickname,
+                                    date_part('month', birthday) :: text AS date_month
+                                   FROM peers),
+         months AS (SELECT TO_CHAR(months, 'MM') AS "dateMonth"
+                    FROM generate_series(
+                        '2023-01-01' :: DATE,
+                        '2023-12-31' :: DATE ,
+                        '1 month'
+                    ) AS months),
+         entries_in_birth_month AS (SELECT date_month,
+                 peers_birthdays.nickname,
+                 timetracking."Date",
+                 timetracking."Time"
+            FROM peers_birthdays INNER JOIN months ON months."dateMonth" = peers_birthdays.date_month
+            INNER JOIN timetracking ON timetracking.peer = peers_birthdays.nickname
+            WHERE  date_part('month', timetracking."Date") :: text = peers_birthdays.date_month),
+         early_entries AS (SELECT *
+            FROM entries_in_birth_month
+            WHERE entries_in_birth_month."Time" < '12:00:00')
+
+
+END;
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+CALL early_entry('ref');
+FETCH ALL IN "ref";
+END;
+
+
+
