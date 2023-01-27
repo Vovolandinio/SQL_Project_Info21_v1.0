@@ -824,21 +824,28 @@ CREATE OR REPLACE PROCEDURE early_entry(ref refcursor)
 AS $$
 BEGIN
 OPEN ref FOR
-   WITH main AS (SELECT timeTrack.peer,
-                        timeTrack.time,
-                        date_part('month', "Date") AS month
-        FROM (SELECT peer, "Date", min("Time") AS time
-              FROM timetracking
-              GROUP BY peer, "Date"
-              ORDER BY "Date") AS timeTrack
-            INNER JOIN peers ON timeTrack.peer = peers.nickname
-        AND date_part('month', timeTrack."Date") = date_part('month',peers.birthday)),
+    WITH peers_birthdays AS (SELECT nickname,
+                                    date_part('month', birthday) :: text AS date_month
+                                   FROM peers),
+         months AS (SELECT TO_CHAR(months, 'MM') AS "dateMonth"
+                    FROM generate_series(
+                        '2023-01-01' :: DATE,
+                        '2023-12-31' :: DATE ,
+                        '1 month'
+                    ) AS months),
+         entries_in_birth_month AS (SELECT date_month,
+                 peers_birthdays.nickname,
+                 timetracking."Date",
+                 timetracking."Time"
+            FROM peers_birthdays INNER JOIN months ON months."dateMonth" = peers_birthdays.date_month
+            INNER JOIN timetracking ON timetracking.peer = peers_birthdays.nickname
+            WHERE  date_part('month', timetracking."Date") :: text = peers_birthdays.date_month),
+         early_entries AS (SELECT *
+            FROM entries_in_birth_month
+            WHERE entries_in_birth_month."Time" < '12:00:00')
 
-       total_ins AS (SELECT month,
-                            count(month) AS total
-                     FROM main
-                     GROUP BY month
-                     ORDER BY month)
+SELECT * FROM entries_in_birth_month;
+
 END;
 $$ LANGUAGE plpgsql;
 
