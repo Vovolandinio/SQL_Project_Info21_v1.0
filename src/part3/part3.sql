@@ -357,18 +357,6 @@ $$ LANGUAGE plpgsql;
 
 SELECT * FROM pr_recommendation_peer('Klee');
 
-BEGIN;
-CALL pr_recommendation_peer('Klee');
-FETCH ALL FROM "ref";
-END;
-
-
-BEGIN;
-CALL pr_recommendation_peer('Klee', 'ref');
-FETCH ALL FROM "ref";
-END;
-
-
 -- 11) Определить процент пиров, которые:
 --
 -- Приступили только к блоку 1
@@ -381,38 +369,48 @@ END;
 -- Формат вывода: процент приступивших только к первом
 
 
+
+
+CREATE TABLE returns_table_successful_checks_blocks (Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT, Started_no_one BIGINT);
+
+DROP function fnc_successful_checks_blocks(block1 varchar, block2 varchar);
+
 CREATE FUNCTION fnc_successful_checks_blocks(block1 varchar, block2 varchar)
 RETURNS SETOF returns_table_successful_checks_blocks AS $$
+    DECLARE
+        count_peers integer := (SELECT COUNT(peers.nickname)
+                        FROM peers);
     BEGIN
         RETURN QUERY
         WITH startedblock1 AS (SELECT DISTINCT peer
             FROM Checks
-            WHERE Checks.task LIKE concat('C', '%')),
+            WHERE Checks.task SIMILAR TO concat(block1,'[0-9]_%')),
             startedblock2 AS (SELECT DISTINCT peer
             FROM Checks
-            WHERE task LIKE concat(block2, '%')),
-            startedboth AS (SELECT DISTINCT peer
-            FROM Checks
-            WHERE task LIKE concat(block2, '%') AND task LIKE concat(block1, '%'))
+            WHERE Checks.task SIMILAR TO concat(block2,'[0-9]_%')),
+            startedboth AS (SELECT DISTINCT startedblock1.peer
+            FROM startedblock1 INNER JOIN startedblock2 ON startedblock1.peer = startedblock2.peer),
+            startedoneof AS(SELECT DISTINCT peer
+                            FROM ((SELECT * FROM startedblock1) UNION (SELECT * FROM startedblock2)) AS foo)
 
-        SELECT Started_block1,
-               Started_block2,
-               Started_both,
-               Started_no_one
-        FROM (values((SELECT COUNT(*) * 100/8
-        FROM startedblock1),
-                      (SELECT COUNT(*)*100/8
-        FROM startedblock2),
-                     (SELECT COUNT(*)*100/8
-        FROM startedboth),
-                     (SELECT (8-COUNT(*))*100/8
-        FROM startedboth)))
-                s(Started_block1,Started_block2,Started_both, Started_no_one);
+        SELECT (SELECT COUNT(*) * 100/count_peers
+                FROM startedblock1
+                group by count_peers)       AS Started_block1,
+                (SELECT coalesce(COUNT(*) * 100/count_peers,0)
+                 FROM startedblock2
+                 group by count_peers)      AS Started_block2,
+                (SELECT COUNT(*) * 100/count_peers
+                 FROM startedboth
+                 group by count_peers)      AS Started_both,
+                     (SELECT (count_peers-COUNT(*)) * 100/count_peers
+                      FROM startedoneof
+                      group by count_peers) AS Started_no_one;
     END
 $$
 LANGUAGE plpgsql;
 
-SELECT * FROM fnc_successful_checks_blocks('C', 'C');
+SELECT * FROM fnc_successful_checks_blocks('C', 'CPP');
+
 
 -- 12) Определить N пиров с наибольшим числом друзей
 -- Параметры процедуры: количество пиров N.
@@ -831,16 +829,16 @@ SELECT * FROM fnc_interval(12);
 -- Формат вывода: месяц, процент ранних входов
 
 
-DROP PROCEDURE IF EXISTS early_entry;
+DROP FUNCTION IF EXISTS fnc_early_entry();
 
-CREATE OR REPLACE PROCEDURE early_entry(ref refcursor)
-AS $$
+CREATE FUNCTION fnc_early_entry()
+RETURNS TABLE(month int, count_all BIGINT, count_ea BIGINT) AS $$
 BEGIN
-OPEN ref FOR
+    RETURN QUERY
     WITH peers_birthdays AS (SELECT nickname,
                                     date_part('month', birthday) :: text AS date_month
                                    FROM peers),
-         months AS (SELECT TO_CHAR(months, 'MM') AS "dateMonth"
+         months AS (SELECT date_part('month', months) :: text AS "dateMonth"
                     FROM generate_series(
                         '2023-01-01' :: DATE,
                         '2023-12-31' :: DATE ,
@@ -855,14 +853,24 @@ OPEN ref FOR
             WHERE  date_part('month', timetracking."Date") :: text = peers_birthdays.date_month),
          early_entries AS (SELECT *
             FROM entries_in_birth_month
-            WHERE entries_in_birth_month."Time" < '12:00:00')
+            WHERE entries_in_birth_month."Time" < '12:00:00'),
 
-SELECT * FROM entries_in_birth_month;
+        count_early_entries AS (SELECT months."dateMonth"::int,
+               COUNT(early_entries.nickname) AS count_ea
+        FROM months LEFT JOIN early_entries ON months."dateMonth" = early_entries.date_month
+        GROUP BY months."dateMonth"),
 
-END;
+        count_all_entries as (SELECT months."dateMonth"::int,
+               COUNT(entries_in_birth_month.nickname) AS count_all
+        FROM months LEFT JOIN entries_in_birth_month ON months."dateMonth" = entries_in_birth_month.date_month
+        GROUP BY months."dateMonth")
+
+        SELECT count_all_entries."dateMonth",
+               count_all_entries.count_all,
+               count_early_entries.count_ea
+        FROM count_all_entries INNER JOIN count_early_entries ON count_all_entries."dateMonth" = count_early_entries."dateMonth"
+        ORDER BY 1;
+END
 $$ LANGUAGE plpgsql;
 
-BEGIN;
-CALL early_entry('ref');
-FETCH ALL IN "ref";
-END;
+SELECT * FROM fnc_early_entry();
