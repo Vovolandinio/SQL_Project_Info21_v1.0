@@ -105,19 +105,19 @@ VALUES (0, 'Start', '12:31'),
 
 
 INSERT INTO TransferredPoints (CheckingPeer, CheckedPeer, PointsAmount)
-VALUES ('Bennett', 'Diluc', 2),
+VALUES ('Bennett', 'Diluc', 1),
        ('Diluc', 'Bennett', 1),
        ('Dori', 'Bennett', 1),
        ('Keqing', 'Dori', 1),
        ('Diluc', 'Keqing', 1),
        ('Klee', 'Zhongli', 1),
-       ('Raiden', 'Diluc', 2),
+       ('Raiden', 'Diluc', 1),
        ('Diluc', 'Klee', 1),
        ('Klee', 'Diluc', 1),
        ('Zhongli', 'Klee', 1),
        ('Bennett', 'Dori', 1),
        ('Dori', 'Keqing', 1),
-       ('Diluc', 'Raiden', 2),
+       ('Diluc', 'Raiden', 1),
        ('Keqing', 'Raiden', 1);
 
 

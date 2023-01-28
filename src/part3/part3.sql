@@ -517,15 +517,21 @@ END;
 DROP FUNCTION IF EXISTS fnc_successful_tasks_1_2(task1 varchar, task2 varchar, task3 varchar);
 
 CREATE FUNCTION fnc_successful_tasks_1_2(task1 varchar, task2 varchar, task3 varchar)
-RETURNS TABLE(Peer varchar, Task varchar)
+RETURNS TABLE(Peer varchar)
 AS $$
-        SELECT peer, successful_checks.task
+        WITH suck_task1 AS (SELECT peer
         FROM fnc_successful_checks() AS successful_checks
-        WHERE (successful_checks.task LIKE task1) AND (successful_checks.task LIKE task2) AND (successful_checks.task LIKE task3);
+        WHERE successful_checks.task LIKE task1 AND successful_checks.task NOT LIKE task3),
+             suck_task2 AS (SELECT peer
+        FROM fnc_successful_checks() AS successful_checks
+        WHERE successful_checks.task LIKE task2 AND successful_checks.task NOT LIKE task3)
+
+        SELECT *
+        FROM ((SELECT * FROM suck_task1) INTERSECT (SELECT * FROM suck_task2)) AS foo;
 $$
 LANGUAGE sql;
 
-SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C3_s21_string+', 'C8_3DViewer_v1.0');
+SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C3_s21_string+', 'C8_3DViewer_v1');
 
 -- 16) Используя рекурсивное обобщенное табличное выражение, для каждой задачи вывести кол-во предшествующих ей задач
 -- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
