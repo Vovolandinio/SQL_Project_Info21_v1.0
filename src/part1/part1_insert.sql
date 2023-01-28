@@ -22,7 +22,7 @@ VALUES ('C2_SimpleBashUtils', NULL, 250),
        ('DO2_Linux_Network','D01_Linux', 250),
        ('DO3_Linux_Monitoring','DO2_Linux_Network', 350),
        ('DO5_SimpleDocker','DO3_Linux_Monitoring', 300),
-       ('DO6_CICD','DO5_SimpleDocker', 300);
+       ('DO6_CI/CD','DO5_SimpleDocker', 300);
 
 
 
@@ -39,7 +39,7 @@ VALUES (0, 'Diluc', 'C2_SimpleBashUtils', '2022-08-30'),
        (9, 'Diluc', 'C6_s21_matrix', '2022-09-26'),
        (10, 'Diluc', 'C7_SmartCalc_v1.0', '2022-10-01'),
        (11, 'Diluc', 'C8_3DViewer_v1.0', '2022-10-10'),
-       (12, 'Keqing', 'C3_s21_string+', '2022-10-20');
+       (12, 'Keqing', 'C2_SimpleBashUtils', '2022-10-20');
 
 
 

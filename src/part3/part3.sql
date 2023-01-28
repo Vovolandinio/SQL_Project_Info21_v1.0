@@ -521,17 +521,20 @@ RETURNS TABLE(Peer varchar)
 AS $$
         WITH suck_task1 AS (SELECT peer
         FROM fnc_successful_checks() AS successful_checks
-        WHERE successful_checks.task LIKE task1 AND successful_checks.task NOT LIKE task3),
+        WHERE successful_checks.task LIKE task1),
              suck_task2 AS (SELECT peer
         FROM fnc_successful_checks() AS successful_checks
-        WHERE successful_checks.task LIKE task2 AND successful_checks.task NOT LIKE task3)
+        WHERE successful_checks.task LIKE task2),
+            suck_task3 AS (SELECT Peer
+                           FROM  fnc_successful_checks() AS successful_checks
+                           WHERE successful_checks.task NOT LIKE task3)
 
         SELECT *
-        FROM ((SELECT * FROM suck_task1) INTERSECT (SELECT * FROM suck_task2)) AS foo;
+        FROM ((SELECT * FROM suck_task1) INTERSECT (SELECT * FROM suck_task2) INTERSECT (SELECT * FROM suck_task3))  AS foo;
 $$
 LANGUAGE sql;
 
-SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C3_s21_string+', 'C8_3DViewer_v1');
+SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C3_s21_string+', 'C5_s21_decimal');
 
 -- 16) Используя рекурсивное обобщенное табличное выражение, для каждой задачи вывести кол-во предшествующих ей задач
 -- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
