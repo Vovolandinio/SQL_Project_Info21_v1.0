@@ -333,27 +333,30 @@ SELECT * FROM fnc_successful_checks_last_task('C');
 
 DROP FUNCTION IF EXISTS pr_recommendation_peer(IN checking_peer varchar, OUT checked_peer varchar);
 
-CREATE OR REPLACE FUNCTION pr_recommendation_peer(IN checking_peer varchar, OUT checked_peer varchar)
-AS $$
-
-    DECLARE
-        checked_peer varchar := (WITH find_friends AS (SELECT friends.peer2
-                              FROM friends
-                              WHERE friends.peer1 NOT LIKE checking_peer),
-             recommended_peers AS (SELECT recommendations.recommendedpeer
-                                    FROM recommendations INNER JOIN find_friends ON recommendations.peer = find_friends.peer2
-                                    WHERE recommendations.recommendedpeer NOT LIKE checking_peer)SELECT recommended_peers.recommendedpeer,
-                                     COUNT(*)
-                              FROM recommended_peers
-                              GROUP BY recommended_peers.recommendedpeer
-                              ORDER BY 2 DESC
-                              LIMIT 1);
-
-BEGIN
-    SELECT checked_peer, checked_peer;
-
-END;
-$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION pr_recommendation_peer(IN checking_peer varchar)
+RETURNS TABLE(checking varchar, recommended varchar)
+    AS $$
+    BEGIN
+    RETURN QUERY
+            WITH find_friends AS (SELECT friends.peer2
+                                   FROM friends
+                                   WHERE friends.peer1 NOT LIKE checking_peer),
+                 recommended_peers AS (SELECT recommendations.recommendedpeer
+                                       FROM recommendations
+                                       INNER JOIN find_friends ON recommendations.peer = find_friends.peer2
+                                       WHERE recommendations.recommendedpeer NOT LIKE checking_peer),
+                 recommended_peer AS (SELECT recommended_peers.recommendedpeer,
+                                               COUNT(*)
+                                        FROM recommended_peers
+                                        GROUP BY recommended_peers.recommendedpeer
+                                        ORDER BY 2 DESC
+                                        LIMIT 1)
+                SELECT (SELECT peers.nickname
+                        FROM peers
+                        WHERE peers.nickname = checking_peer), (SELECT recommendedpeer FROM recommended_peer);
+        END;
+$$
+LANGUAGE plpgsql;
 
 SELECT * FROM pr_recommendation_peer('Klee');
 
@@ -369,16 +372,13 @@ SELECT * FROM pr_recommendation_peer('Klee');
 -- Формат вывода: процент приступивших только к первом
 
 
-
-
-CREATE TABLE returns_table_successful_checks_blocks (Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT, Started_no_one BIGINT);
-
 DROP function fnc_successful_checks_blocks(block1 varchar, block2 varchar);
 
 CREATE FUNCTION fnc_successful_checks_blocks(block1 varchar, block2 varchar)
-RETURNS SETOF returns_table_successful_checks_blocks AS $$
+RETURNS TABLE(Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT, Started_no_one BIGINT)
+    AS $$
     DECLARE
-        count_peers integer := (SELECT COUNT(peers.nickname)
+        count_peers CONSTANT int := (SELECT COUNT(peers.nickname)
                         FROM peers);
     BEGIN
         RETURN QUERY
@@ -394,17 +394,13 @@ RETURNS SETOF returns_table_successful_checks_blocks AS $$
                             FROM ((SELECT * FROM startedblock1) UNION (SELECT * FROM startedblock2)) AS foo)
 
         SELECT (SELECT COUNT(*) * 100/count_peers
-                FROM startedblock1
-                group by count_peers)       AS Started_block1,
-                (SELECT coalesce(COUNT(*) * 100/count_peers,0)
-                 FROM startedblock2
-                 group by count_peers)      AS Started_block2,
+                FROM startedblock1)      AS Started_block1,
                 (SELECT COUNT(*) * 100/count_peers
-                 FROM startedboth
-                 group by count_peers)      AS Started_both,
+                 FROM startedblock2)   AS Started_block2,
+                (SELECT COUNT(*) * 100/count_peers
+                 FROM startedboth)       AS Started_both,
                      (SELECT (count_peers-COUNT(*)) * 100/count_peers
-                      FROM startedoneof
-                      group by count_peers) AS Started_no_one;
+                      FROM startedoneof) AS Started_no_one;
     END
 $$
 LANGUAGE plpgsql;
