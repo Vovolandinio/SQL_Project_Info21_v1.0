@@ -337,14 +337,15 @@ SELECT * FROM fnc_successful_checks_last_task('C');
 
 -- написать правильно вызов функции :(
 
-CREATE OR REPLACE PROCEDURE pr_recommendation_peer(OUT checked_peer varchar)
+DROP PROCEDURE IF EXISTS pr_recommendation_peer(IN checking_peer varchar, ref refcursor);
+
+CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN checking_peer varchar, ref refcursor)
                  AS $$
-                 BEGIN
-                    --OPEN ref FOR
-                     checked_peer := (WITH find_friends AS (SELECT friends.peer2
-                                               FROM friends
-                                               WHERE friends.peer1 NOT LIKE 'Diluc'),
-                                      recommended_peers AS (SELECT recommendations.recommendedpeer
+                     DECLARE
+                         checked_peer varchar := (WITH find_friends AS (SELECT DISTINCT friends.peer2
+                                                                        FROM friends
+                                                                        WHERE friends.peer1 NOT LIKE 'Diluc'),
+                                      recommended_peers AS (SELECT DISTINCT recommendations.recommendedpeer
                                                              FROM recommendations INNER JOIN find_friends
                                                                  ON recommendations.peer = find_friends.peer2
                                                              WHERE recommendations.recommendedpeer NOT LIKE 'Diluc')
@@ -354,17 +355,17 @@ CREATE OR REPLACE PROCEDURE pr_recommendation_peer(OUT checked_peer varchar)
                                       GROUP BY recommended_peers.recommendedpeer
                                       ORDER BY 2 DESC
                                       LIMIT 1);
-
+                    BEGIN
+                         SELECT checking_peer, checked_peer;
                  END
                  $$ LANGUAGE plpgsql;
 
 
 
 BEGIN;
-CALL pr_recommendation_peer('Diluc');
+CALL pr_recommendation_peer('Klee', 'ref');
 FETCH ALL FROM "ref";
 END;
-
 
 
 -- 11) Определить процент пиров, которые:
