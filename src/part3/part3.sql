@@ -316,9 +316,7 @@ WITH tasks_current_block AS (SELECT *
                                                 checks."Date"
                         FROM checks
                         INNER JOIN p2p ON checks.id = p2p."Check"
---                         INNER JOIN Verter ON checks.id = Verter."Check"
                         WHERE p2p.state = 'Success'
---                           AND Verter.state = 'Success'
                         GROUP BY checks.id)
 
             SELECT dosc.peer AS Peer,
@@ -333,33 +331,36 @@ SELECT * FROM fnc_successful_checks_last_task('C');
 -- Определять нужно исходя из рекомендаций друзей пира, т.е. нужно найти пира, проверяться у которого рекомендует наибольшее число друзей.
 -- Формат вывода: ник пира, ник найденного проверяющего
 
-DROP PROCEDURE IF EXISTS pr_recommendation_peer(IN checking_peer varchar, ref refcursor);
+DROP FUNCTION IF EXISTS pr_recommendation_peer(IN checking_peer varchar, OUT checked_peer varchar);
 
-CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN checking_peer varchar, ref refcursor)
-                 AS $$
-                     DECLARE
-                         checked_peer varchar := (WITH find_friends AS (SELECT DISTINCT friends.peer2
-                                                                        FROM friends
-                                                                        WHERE friends.peer1 NOT LIKE 'Diluc'),
-                                      recommended_peers AS (SELECT DISTINCT recommendations.recommendedpeer
-                                                             FROM recommendations INNER JOIN find_friends
-                                                                 ON recommendations.peer = find_friends.peer2
-                                                             WHERE recommendations.recommendedpeer NOT LIKE 'Diluc'),
-                                      recommended_peer AS (
-                                      SELECT recommended_peers.recommendedpeer,
-                                             COUNT(*)
-                                      FROM recommended_peers
-                                      GROUP BY recommended_peers.recommendedpeer
-                                      ORDER BY 2 DESC
-                                      LIMIT 1)
+CREATE OR REPLACE FUNCTION pr_recommendation_peer(IN checking_peer varchar, OUT checked_peer varchar)
+AS $$
 
-                                      SELECT recommendedpeer
-                                      FROM recommended_peer);
-                    BEGIN
-                         SELECT checked_peer, checking_peer;
-                 END
-                 $$ LANGUAGE plpgsql;
+    DECLARE
+        checked_peer varchar := (WITH find_friends AS (SELECT friends.peer2
+                              FROM friends
+                              WHERE friends.peer1 NOT LIKE checking_peer),
+             recommended_peers AS (SELECT recommendations.recommendedpeer
+                                    FROM recommendations INNER JOIN find_friends ON recommendations.peer = find_friends.peer2
+                                    WHERE recommendations.recommendedpeer NOT LIKE checking_peer)SELECT recommended_peers.recommendedpeer,
+                                     COUNT(*)
+                              FROM recommended_peers
+                              GROUP BY recommended_peers.recommendedpeer
+                              ORDER BY 2 DESC
+                              LIMIT 1);
 
+BEGIN
+    SELECT checked_peer, checked_peer;
+
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM pr_recommendation_peer('Klee');
+
+BEGIN;
+CALL pr_recommendation_peer('Klee');
+FETCH ALL FROM "ref";
+END;
 
 
 BEGIN;
@@ -379,11 +380,6 @@ END;
 -- Параметры процедуры: название блока 1, например SQL, название блока 2, например A.
 -- Формат вывода: процент приступивших только к первом
 
-
-SELECT * FROM fnc_successful_checks_blocks('C', 'C');
-
-DROP TABLE returns_table_successful_checks_blocks CASCADE;
-CREATE TABLE returns_table_successful_checks_blocks (Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT, Started_no_one BIGINT);
 
 CREATE FUNCTION fnc_successful_checks_blocks(block1 varchar, block2 varchar)
 RETURNS SETOF returns_table_successful_checks_blocks AS $$
@@ -416,6 +412,7 @@ RETURNS SETOF returns_table_successful_checks_blocks AS $$
 $$
 LANGUAGE plpgsql;
 
+SELECT * FROM fnc_successful_checks_blocks('C', 'C');
 
 -- 12) Определить N пиров с наибольшим числом друзей
 -- Параметры процедуры: количество пиров N.
@@ -451,31 +448,28 @@ END;
 -- Также определите процент пиров, которые хоть раз проваливали проверку в свой день рождения.
 -- Формат вывода: процент успехов в день рождения, процент неуспехов в день рождения
 
+
 DROP FUNCTION IF EXISTS fnc_successful_checks_birthday();
 
-CREATE FUNCTION fnc_successful_checks_birthday()
-RETURNS TABLE(SuccessfulDayChecks BIGINT, UnsuccessfulDayChecks BIGINT) AS $$
-DECLARE
-    checks_count BIGINT := (SELECT MAX(id) FROM checks);
-BEGIN
-    WITH suckchecks AS (SELECT *
-    FROM Peers INNER JOIN Checks ON Peers.birthday = Checks."Date"
-    WHERE Peers.Nickname = Checks.Peer)
-
-    SELECT SuccessfulDayChecks,
-           UnsuccessfulDayChecks
-    FROM (values((SELECT COUNT(*)/checks_count * 100
-                  FROM suckchecks
-                  GROUP BY checks_count),
-                  (SELECT (checks_count - COUNT(*))/checks_count * 100
-                  FROM suckchecks
-                  GROUP BY checks_count)))
-    s(SuccessfulDayChecks, UnsuccessfulDayChecks);
-END
-$$
-LANGUAGE plpgsql;
+ CREATE FUNCTION fnc_successful_checks_birthday()
+ RETURNS TABLE(SuccessfulChecks bigint, UnsuccessfulChecks bigint)
+ AS $$
+ DECLARE
+     checks_count integer := (SELECT MAX(id) FROM checks);
+     suck_checks bigint := (SELECT COUNT(*)
+         FROM Peers INNER JOIN Checks ON Peers.birthday = Checks."Date"
+         WHERE Peers.Nickname = Checks.Peer);
+ BEGIN
+         RETURN QUERY
+             SELECT
+                (SELECT suck_checks/checks_count * 100) AS SuccessfulChecks,
+                (SELECT (checks_count - suck_checks)/checks_count * 100) AS UnsuccessfulChecks;
+     END
+ $$
+ LANGUAGE plpgsql;
 
 SELECT * FROM fnc_successful_checks_birthday();
+
 
 -- 14) Определить кол-во XP, полученное в сумме каждым пиром
 -- Если одна задача выполнена несколько раз, полученное за нее кол-во XP равно максимальному за эту задачу.
