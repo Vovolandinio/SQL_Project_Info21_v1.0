@@ -306,12 +306,11 @@ CREATE or replace FUNCTION fnc_successful_checks_last_task(mytask varchar)
 RETURNS TABLE(peer varchar, "date" date) AS $tab$
     BEGIN
         return query
-            WITH one AS (SELECT *
-                        FROM tasks
-                        WHERE title LIKE concat(mytask, '%')
-                             AND title NOT LIKE concat('CPP', '%')),
+WITH tasks_current_block AS (SELECT *
+                             FROM tasks
+                             WHERE tasks.title SIMILAR TO concat(mytask,'[0-9]_%')),
             last_task AS (SELECT MAX(title) AS title
-                        FROM one),
+                        FROM tasks_current_block),
             date_of_successful_check AS (SELECT checks.peer,
                                                 checks.task,
                                                 checks."Date"
@@ -334,9 +333,6 @@ SELECT * FROM fnc_successful_checks_last_task('C');
 -- Определять нужно исходя из рекомендаций друзей пира, т.е. нужно найти пира, проверяться у которого рекомендует наибольшее число друзей.
 -- Формат вывода: ник пира, ник найденного проверяющего
 
-
--- написать правильно вызов функции :(
-
 DROP PROCEDURE IF EXISTS pr_recommendation_peer(IN checking_peer varchar, ref refcursor);
 
 CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN checking_peer varchar, ref refcursor)
@@ -348,15 +344,19 @@ CREATE OR REPLACE PROCEDURE pr_recommendation_peer(IN checking_peer varchar, ref
                                       recommended_peers AS (SELECT DISTINCT recommendations.recommendedpeer
                                                              FROM recommendations INNER JOIN find_friends
                                                                  ON recommendations.peer = find_friends.peer2
-                                                             WHERE recommendations.recommendedpeer NOT LIKE 'Diluc')
+                                                             WHERE recommendations.recommendedpeer NOT LIKE 'Diluc'),
+                                      recommended_peer AS (
                                       SELECT recommended_peers.recommendedpeer,
                                              COUNT(*)
                                       FROM recommended_peers
                                       GROUP BY recommended_peers.recommendedpeer
                                       ORDER BY 2 DESC
-                                      LIMIT 1);
+                                      LIMIT 1)
+
+                                      SELECT recommendedpeer
+                                      FROM recommended_peer);
                     BEGIN
-                         SELECT checking_peer, checked_peer;
+                         SELECT checked_peer, checking_peer;
                  END
                  $$ LANGUAGE plpgsql;
 
@@ -451,8 +451,6 @@ END;
 -- Также определите процент пиров, которые хоть раз проваливали проверку в свой день рождения.
 -- Формат вывода: процент успехов в день рождения, процент неуспехов в день рождения
 
-SELECT * FROM fnc_successful_checks_birthday();
-
 DROP FUNCTION IF EXISTS fnc_successful_checks_birthday();
 
 CREATE FUNCTION fnc_successful_checks_birthday()
@@ -460,8 +458,6 @@ RETURNS TABLE(SuccessfulDayChecks BIGINT, UnsuccessfulDayChecks BIGINT) AS $$
 DECLARE
     checks_count BIGINT := (SELECT MAX(id) FROM checks);
 BEGIN
-    RETURN QUERY
-
     WITH suckchecks AS (SELECT *
     FROM Peers INNER JOIN Checks ON Peers.birthday = Checks."Date"
     WHERE Peers.Nickname = Checks.Peer)
@@ -479,7 +475,7 @@ END
 $$
 LANGUAGE plpgsql;
 
-
+SELECT * FROM fnc_successful_checks_birthday();
 
 -- 14) Определить кол-во XP, полученное в сумме каждым пиром
 -- Если одна задача выполнена несколько раз, полученное за нее кол-во XP равно максимальному за эту задачу.
@@ -535,7 +531,7 @@ AS $$
 $$
 LANGUAGE sql;
 
-SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C3_s21_string+', 'C5_s21_decimal');
+SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C3_s21_string+', 'DO3_Linux_Monitoring');
 
 -- 16) Используя рекурсивное обобщенное табличное выражение, для каждой задачи вывести кол-во предшествующих ей задач
 -- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
