@@ -58,7 +58,7 @@ create table XP (
     ID serial primary key,
     "Check" bigint, foreign key ("Check") references Checks(ID),
     XPAmount integer,
-    CHECK  (XPAmount > 0)
+    CHECK  (XPAmount >= 0)
 );
 
 CREATE TYPE time_status AS ENUM ('1', '2');
