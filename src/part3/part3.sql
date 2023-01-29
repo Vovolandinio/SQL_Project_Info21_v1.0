@@ -394,13 +394,17 @@ RETURNS TABLE(Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT,
                             FROM ((SELECT * FROM startedblock1) UNION (SELECT * FROM startedblock2)) AS foo)
 
         SELECT (SELECT COUNT(*) * 100/count_peers
-                FROM startedblock1)      AS Started_block1,
+                FROM startedblock1
+                GROUP BY count_peers)      AS Started_block1,
                 (SELECT COUNT(*) * 100/count_peers
-                 FROM startedblock2)   AS Started_block2,
+                 FROM startedblock2
+                 GROUP BY count_peers)   AS Started_block2,
                 (SELECT COUNT(*) * 100/count_peers
-                 FROM startedboth)       AS Started_both,
+                 FROM startedboth
+                 GROUP BY count_peers)       AS Started_both,
                      (SELECT (count_peers-COUNT(*)) * 100/count_peers
-                      FROM startedoneof) AS Started_no_one;
+                      FROM startedoneof
+                      GROUP BY count_peers) AS Started_no_one;
     END
 $$
 LANGUAGE plpgsql;
