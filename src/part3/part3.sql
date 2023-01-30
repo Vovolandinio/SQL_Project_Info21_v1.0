@@ -378,7 +378,7 @@ CREATE FUNCTION fnc_successful_checks_blocks(block1 varchar, block2 varchar)
 RETURNS TABLE(Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT, Started_no_one BIGINT)
     AS $$
     DECLARE
-        count_peers CONSTANT int := (SELECT COUNT(peers.nickname)
+        count_peers int := (SELECT COUNT(peers.nickname)
                         FROM peers);
     BEGIN
         RETURN QUERY
@@ -391,20 +391,28 @@ RETURNS TABLE(Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT,
             startedboth AS (SELECT DISTINCT startedblock1.peer
             FROM startedblock1 INNER JOIN startedblock2 ON startedblock1.peer = startedblock2.peer),
             startedoneof AS(SELECT DISTINCT peer
-                            FROM ((SELECT * FROM startedblock1) UNION (SELECT * FROM startedblock2)) AS foo)
+                            FROM ((SELECT * FROM startedblock1) UNION (SELECT * FROM startedblock2)) AS foo),
 
-        SELECT (SELECT COUNT(*) * 100/count_peers
-                FROM startedblock1
-                GROUP BY count_peers)      AS Started_block1,
-                (SELECT COUNT(*) * 100/count_peers
-                 FROM startedblock2
-                 GROUP BY count_peers)   AS Started_block2,
-                (SELECT COUNT(*) * 100/count_peers
-                 FROM startedboth
-                 GROUP BY count_peers)       AS Started_both,
-                     (SELECT (count_peers-COUNT(*)) * 100/count_peers
-                      FROM startedoneof
-                      GROUP BY count_peers) AS Started_no_one;
+            aboba AS (SELECT
+                          count(*) AS count_startedblock1
+                      FROM startedblock1),
+            aboba2 AS (SELECT
+                          count(*) AS count_startedblock2
+                      FROM startedblock2),
+            aboba3 AS (SELECT
+                          count(*) AS count_startedboth
+                      FROM startedboth),
+            aboba4 AS (SELECT
+                          count(*) AS count_startedoneof
+                      FROM startedoneof)
+
+
+
+        SELECT ((SELECT count_startedblock1::bigint FROM aboba) * 100/count_peers) AS count_startedblock1,
+               ((SELECT count_startedblock2::bigint FROM aboba2) * 100/count_peers) AS Started_block2,
+               ((SELECT count_startedboth::bigint FROM aboba3) * 100/count_peers) AS Started_both,
+               ((SELECT count_peers-count_startedoneof::bigint FROM aboba4) * 100/count_peers) AS Started_no_one;
+
     END
 $$
 LANGUAGE plpgsql;
