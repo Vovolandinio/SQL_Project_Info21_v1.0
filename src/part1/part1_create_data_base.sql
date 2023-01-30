@@ -1,7 +1,6 @@
 create table Peers (
     Nickname varchar UNIQUE primary key,
-    Birthday date not null,
-    UNIQUE(Nickname)
+    Birthday date not null
 );
 
 create table Tasks (

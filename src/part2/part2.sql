@@ -1,10 +1,3 @@
--- Для удобства
--- TRUNCATE TABLE p2p CASCADE;
--- TRUNCATE TABLE checks CASCADE;
--- TRUNCATE TABLE transferredpoints CASCADE;
--- TRUNCATE TABLE verter CASCADE;
-
-
 -- 1)Написать процедуру добавления P2P проверки
 -- Параметры: ник проверяемого, ник проверяющего, название задания, статус P2P проверки, время.
 -- Если задан статус "начало", добавить запись в таблицу Checks (в качестве даты использовать сегодняшнюю).
@@ -43,17 +36,17 @@ AS $$
 
 -- Tests starts.
 CALL pr_p2p_check (
-    'Diluc',
     'Bennett',
-    'C6_s21_matrix',
+    'Diluc',
+    'C5_s21_decimal',
     'Start',
     '09:00:00'
 );
 
 CALL pr_p2p_check (
-    'Diluc',
     'Bennett',
-    'C6_s21_matrix',
+    'Diluc',
+    'C5_s21_decimal',
     'Success',
     '09:20:00'
 );
@@ -83,15 +76,15 @@ $$ LANGUAGE plpgsql;
 
 -- Tests start.
 CALL pr_verter_check (
-    'Diluc',
-    'C6_s21_matrix',
+    'Bennett',
+    'C5_s21_decimal',
     'Start',
     '09:21:00'
 );
 
 CALL pr_verter_check (
-    'Diluc',
-    'C6_s21_matrix',
+    'Bennett',
+    'C5_s21_decimal',
     'Success',
     '09:22:00'
 );
@@ -101,15 +94,13 @@ CALL pr_verter_check (
 
 -- 3) Написать триггер: после добавления записи со статутом "начало" в таблицу P2P, изменить соответствующую запись в таблице TransferredPoints
 
--- Удаление функции.
 drop FUNCTION fnc_transferred_points_after_p2p_start() CASCADE;
 
--- Создание вспомогательной функции.
 CREATE OR REPLACE FUNCTION fnc_transferred_points_after_p2p_start()
 RETURNS TRIGGER AS $tab$
     BEGIN
         IF NEW.state = 'Start' THEN
-			WITH one AS (SELECT DISTINCT
+			WITH peers AS (SELECT DISTINCT
 		  		NEW.checkingpeer,
 		  		checks.peer as checkedpeer
 			   FROM p2p
@@ -118,9 +109,9 @@ RETURNS TRIGGER AS $tab$
 
             UPDATE transferredpoints
                 SET pointsamount = transferredpoints.pointsamount + 1
-                FROM one
-                WHERE transferredpoints.checkingpeer = one.checkingpeer
-                AND transferredpoints.checkedpeer = one.checkedpeer;
+                FROM peers
+                WHERE transferredpoints.checkingpeer = peers.checkingpeer
+                AND transferredpoints.checkedpeer = peers.checkedpeer;
 			RETURN NEW;
     END IF;
 END;
@@ -132,9 +123,7 @@ CREATE TRIGGER trg_transferred_points
     EXECUTE PROCEDURE fnc_transferred_points_after_p2p_start();
 
 
-SELECT *
-FROM transferredpoints;
-
+SELECT * FROM transferredpoints;
 
 -- 4) Написать триггер: перед добавлением записи в таблицу XP, проверить корректность добавляемой записи
 -- Запись считается корректной, если:

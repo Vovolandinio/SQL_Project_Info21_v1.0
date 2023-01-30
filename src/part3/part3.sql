@@ -2,9 +2,9 @@
 -- Ник пира 1, ник пира 2, количество переданных пир поинтов.
 -- Количество отрицательное, если пир 2 получил от пира 1 больше поинтов.
 
--- Удаление функции.
+
 DROP FUNCTION IF EXISTS fnc_transferred_points();
--- Создание функции.
+
 CREATE OR REPLACE FUNCTION fnc_transferred_points()
 RETURNS TABLE ("Peer1" varchar, "Peer2" varchar, "PointsAmount" integer) AS $$
     WITH tmp AS (
@@ -71,9 +71,9 @@ SELECT * FROM fnc_successful_checks();
 -- Параметры функции: день, например 12.05.2022.
 -- Функция возвращает только список пиров.
 
--- Удаление функции.
+
 DROP FUNCTION IF EXISTS fnc_check_date(peer_date date);
--- Создание функции.
+
 CREATE OR REPLACE FUNCTION fnc_check_date(peer_date date)
     RETURNS TABLE (peer varchar) AS $$
     SELECT peer
@@ -89,9 +89,8 @@ SELECT * FROM fnc_check_date('2022-06-09');
 -- 4) Найти процент успешных и неуспешных проверок за всё время
 -- Формат вывода: процент успешных, процент неуспешных
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_success_percent(IN ref refcursor);
--- Создание процедуры.
+
 CREATE OR REPLACE PROCEDURE pr_success_percent(IN ref refcursor)
 AS $$
     BEGIN
@@ -139,9 +138,8 @@ END;
 -- Результат вывести отсортированным по изменению числа поинтов.
 -- Формат вывода: ник пира, изменение в количество пир поинтов
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_points_change(IN ref refcursor);
--- Создание процедуры.
+
 CREATE OR REPLACE PROCEDURE pr_points_change(IN ref refcursor)
 AS $$ BEGIN
     OPEN ref FOR
@@ -175,9 +173,8 @@ END;
 -- Результат вывести отсортированным по изменению числа поинтов.
 -- Формат вывода: ник пира, изменение в количество пир поинтов
 
--- Удаление процедуры.
 DROP procedure IF EXISTS pr_transferred_points(IN ref refcursor);
--- Создание процедуры.
+
 CREATE OR REPLACE PROCEDURE pr_transferred_points(IN ref  refcursor)
 AS $$
     BEGIN
@@ -209,10 +206,9 @@ END;
 -- При одинаковом количестве проверок каких-то заданий в определенный день, вывести их все.
 -- Формат вывода: день, название задания
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_max_task_check(IN ref refcursor);
--- Создание процедуры.
-create or replace procedure pr_max_task_check(IN ref  refcursor)
+
+CREATE OR REPLACE PROCEDURE pr_max_task_check(IN ref  refcursor)
 AS $$
     BEGIN
         OPEN ref FOR
@@ -245,9 +241,8 @@ END;
 -- Под длительностью подразумевается разница между временем, указанным в записи со статусом "начало", и временем, указанным в записи со статусом "успех" или "неуспех".
 -- Формат вывода: длительность проверки
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_check_duration;
--- Создание процедуры.
+
 CREATE OR REPLACE PROCEDURE pr_check_duration(IN ref refcursor)
 AS $$
     DECLARE
@@ -300,10 +295,11 @@ END;
 -- Результат вывести отсортированным по дате завершения.
 -- Формат вывода: ник пира, дата завершения блока (т.е. последнего выполненного задания из этого блока)
 
-drop  FUNCTION fnc_successful_checks_last_task;
+DROP FUNCTION IF EXISTS fnc_successful_checks_last_task;
 
 CREATE or replace FUNCTION fnc_successful_checks_last_task(mytask varchar)
-RETURNS TABLE(peer varchar, "date" date) AS $tab$
+RETURNS TABLE(peer varchar, "date" date)
+    AS $tab$
     BEGIN
         return query
 WITH tasks_current_block AS (SELECT *
@@ -325,6 +321,7 @@ WITH tasks_current_block AS (SELECT *
     END
 $tab$ LANGUAGE plpgsql;
 
+-- Тестовый запрос.
 SELECT * FROM fnc_successful_checks_last_task('C');
 
 -- 10) Определить, к какому пиру стоит идти на проверку каждому обучающемуся
@@ -370,7 +367,6 @@ SELECT * FROM pr_recommendation_peer('Klee');
 -- Пир считается приступившим к блоку, если он проходил хоть одну проверку любого задания из этого блока (по таблице Checks)
 -- Параметры процедуры: название блока 1, например SQL, название блока 2, например A.
 -- Формат вывода: процент приступивших только к первом
-
 
 DROP function fnc_successful_checks_blocks(block1 varchar, block2 varchar);
 
@@ -419,16 +415,13 @@ LANGUAGE plpgsql;
 
 SELECT * FROM fnc_successful_checks_blocks('C', 'CPP');
 
-
 -- 12) Определить N пиров с наибольшим числом друзей
 -- Параметры процедуры: количество пиров N.
 -- Результат вывести отсортированным по кол-ву друзей.
 -- Формат вывода: ник пира, количество друзей
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_count_friends;
 
--- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_count_friends(IN ref refcursor,IN limits int)
 AS $$
     BEGIN
@@ -482,10 +475,8 @@ SELECT * FROM fnc_successful_checks_birthday();
 -- Результат вывести отсортированным по кол-ву XP.
 -- Формат вывода: ник пира, количество XP
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_peer_xp_sum(ref refcursor);
 
--- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_peer_xp_sum(IN ref refcursor)
 AS $$
     BEGIN
@@ -501,7 +492,6 @@ AS $$
     END
     $$ LANGUAGE plpgsql;
 
--- Тестовая транзакция.
 BEGIN;
 CALL pr_peer_xp_sum('ref');
 FETCH ALL FROM "ref";
@@ -537,9 +527,8 @@ SELECT * FROM fnc_successful_tasks_1_2('C2_SimpleBashUtils', 'C3_s21_string+', '
 -- То есть сколько задач нужно выполнить, исходя из условий входа, чтобы получить доступ к текущей.
 -- Формат вывода: название задачи, количество предшествующих
 
--- Удаление функции.
 DROP FUNCTION IF EXISTS fnc_count_parent_tasks();
--- Создание функции.
+
 CREATE OR REPLACE FUNCTION fnc_count_parent_tasks()
 RETURNS TABLE (Task varchar, PrevCount integer) AS $$
         WITH RECURSIVE r AS (
@@ -582,11 +571,11 @@ SELECT * FROM fnc_count_parent_tasks();
 -- При этом кол-во опыта за каждую из этих проверок должно быть не меньше 80% от максимального.
 -- Формат вывода: список дней
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_lucky_day(ref refcursor);
 
-CREATE OR REPLACE PROCEDURE pr_lucky_day(IN ref refcursor, N int) AS
-    $$ BEGIN
+CREATE OR REPLACE PROCEDURE pr_lucky_day(IN ref refcursor, N int)
+    AS $$
+    BEGIN
         OPEN ref FOR
             WITH t1 AS (
             SELECT c.id,
@@ -620,10 +609,8 @@ END;
 -- 18) Определить пира с наибольшим числом выполненных заданий
 -- Формат вывода: ник пира, число выполненных заданий
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_max_done_task(ref refcursor);
 
--- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_max_done_task(IN ref refcursor) AS
     $$
 BEGIN
@@ -646,10 +633,8 @@ END;
 -- 19) Определить пира с наибольшим количеством XP
 -- Формат вывода: ник пира, количество XP
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_max_peer_xp(ref refcursor);
 
--- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_max_peer_xp(IN ref refcursor) AS
     $$
     BEGIN
@@ -705,10 +690,8 @@ SELECT * FROM fnc_the_longest_interval();
 -- Параметры процедуры: время, количество раз N.
 -- Формат вывода: список пиров
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_time_spent(IN ref refcursor, checkTime time, N int);
 
--- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_time_spent(IN ref refcursor, checkTime time, N int)
 AS $$
     BEGIN
@@ -732,10 +715,8 @@ END;
 -- Параметры процедуры: количество дней N, количество раз M.
 -- Формат вывода: список пиров
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_count_out_of_campus(IN ref refcursor, N int, M int);
 
--- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_count_out_of_campus(IN ref refcursor, N int, M int)
 AS $$
     BEGIN
@@ -762,11 +743,8 @@ END;
 -- 23) Определить пира, который пришел сегодня последним
 -- Формат вывода: ник пира
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_last_current_online(IN ref refcursor);
 
-
--- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_last_current_online(IN ref refcursor)
 AS $$
     BEGIN

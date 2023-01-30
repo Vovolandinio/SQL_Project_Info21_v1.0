@@ -4,10 +4,8 @@
 -- Создание таблицы для теста.
 CREATE TABLE returns_table (peer varchar, task varchar, xpamount integer);
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_remove_table(TableName varchar);
 
--- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_remove_table(IN TableName text)
 AS $$
 BEGIN
@@ -54,10 +52,8 @@ $$;
 -- 3) Создать хранимую процедуру с выходным параметром, которая уничтожает все SQL DML триггеры в текущей базе данных.
 -- Выходной параметр возвращает количество уничтоженных триггеров.
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_delete_dml_triggers (IN ref refcursor, INOUT result int);
 
--- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_delete_dml_triggers (IN ref refcursor, INOUT result int)
 AS $$
 BEGIN
@@ -86,10 +82,8 @@ FROM information_schema.triggers;
 --4) Создать хранимую процедуру с входным параметром, которая выводит имена и описания типа объектов (только
 -- хранимых процедур и скалярных функций), в тексте которых на языке SQL встречается строка, задаваемая параметром процедуры.
 
--- Удаление процедуры.
 DROP PROCEDURE IF EXISTS pr_show_info (IN ref refcursor, IN name text);
 
--- Создание процедуры.
 CREATE OR REPLACE PROCEDURE pr_show_info (IN ref refcursor, IN name text)
 AS $$
     BEGIN
