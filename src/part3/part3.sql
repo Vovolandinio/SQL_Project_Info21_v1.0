@@ -393,25 +393,25 @@ RETURNS TABLE(Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT,
             startedoneof AS(SELECT DISTINCT peer
                             FROM ((SELECT * FROM startedblock1) UNION (SELECT * FROM startedblock2)) AS foo),
 
-            aboba AS (SELECT
+            count_startedblock1 AS (SELECT
                           count(*) AS count_startedblock1
                       FROM startedblock1),
-            aboba2 AS (SELECT
+            count_startedblock2 AS (SELECT
                           count(*) AS count_startedblock2
                       FROM startedblock2),
-            aboba3 AS (SELECT
+            count_startedboth AS (SELECT
                           count(*) AS count_startedboth
                       FROM startedboth),
-            aboba4 AS (SELECT
+            count_startedoneof AS (SELECT
                           count(*) AS count_startedoneof
                       FROM startedoneof)
 
 
 
-        SELECT ((SELECT count_startedblock1::bigint FROM aboba) * 100/count_peers) AS count_startedblock1,
-               ((SELECT count_startedblock2::bigint FROM aboba2) * 100/count_peers) AS Started_block2,
-               ((SELECT count_startedboth::bigint FROM aboba3) * 100/count_peers) AS Started_both,
-               ((SELECT count_peers-count_startedoneof::bigint FROM aboba4) * 100/count_peers) AS Started_no_one;
+        SELECT ((SELECT count_startedblock1::bigint FROM count_startedblock1) * 100/count_peers) AS count_startedblock1,
+               ((SELECT count_startedblock2::bigint FROM count_startedblock2) * 100/count_peers) AS Started_block2,
+               ((SELECT count_startedboth::bigint FROM count_startedboth) * 100/count_peers) AS Started_both,
+               ((SELECT count_peers-count_startedoneof::bigint FROM count_startedoneof) * 100/count_peers) AS Started_no_one;
 
     END
 $$
