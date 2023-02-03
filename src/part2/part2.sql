@@ -4,6 +4,8 @@
 -- Добавить запись в таблицу P2P.
 -- Если задан статус "начало", в качестве проверки указать только что добавленную запись, иначе указать проверку с незавершенным P2P этапом.
 
+DROP PROCEDURE IF EXISTS pr_p2p_check(checked varchar, checking varchar, taskName varchar, state check_status, P2Ptime time);
+
 CREATE or replace PROCEDURE pr_p2p_check (checked varchar,
 checking varchar,
 taskName varchar,
@@ -25,7 +27,9 @@ AS $$
                                     ON checks.id = p2p."Check"
                             WHERE checkingpeer = checking
                               AND peer = checked
-                              AND task = taskName);
+                              AND task = taskName
+                            ORDER BY checks.id DESC
+                            LIMIT 1);
     END IF;
 
     INSERT INTO p2p ("Check", checkingpeer, state, "Time" )
@@ -81,7 +85,7 @@ RETURNS TRIGGER AS $tab$
                 AND transferredpoints.checkedpeer = peers.checkedpeer;
 			RETURN NEW;
 			ELSE
-            raise notice 'ok';
+           RAISE NOTICE 'ok';
     END IF;
 END;
 $tab$ LANGUAGE plpgsql;
