@@ -80,6 +80,8 @@ RETURNS TRIGGER AS $tab$
                 WHERE transferredpoints.checkingpeer = peers.checkingpeer
                 AND transferredpoints.checkedpeer = peers.checkedpeer;
 			RETURN NEW;
+			ELSE
+            raise notice 'ok';
     END IF;
 END;
 $tab$ LANGUAGE plpgsql;
