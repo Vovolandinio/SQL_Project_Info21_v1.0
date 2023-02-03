@@ -37,8 +37,7 @@ create table TransferredPoints (
     ID serial primary key,
     CheckingPeer varchar, foreign key (CheckingPeer) references Peers(Nickname),
     CheckedPeer varchar CHECK ( CheckedPeer != CheckingPeer ), foreign key (CheckedPeer) references Peers(Nickname),
-    PointsAmount integer,
-    CHECK (PointsAmount = 1)
+    PointsAmount integer
 );
 
 create table Friends (
