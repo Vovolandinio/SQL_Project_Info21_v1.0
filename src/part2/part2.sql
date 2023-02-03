@@ -33,25 +33,6 @@ AS $$
     END
     $$ LANGUAGE plpgsql;
 
--- Tests starts.
-CALL pr_p2p_check (
-    'Bennett',
-    'Diluc',
-    'C5_s21_decimal',
-    'Start',
-    '09:00:00'
-);
-
-CALL pr_p2p_check (
-    'Bennett',
-    'Diluc',
-    'C5_s21_decimal',
-    'Success',
-    '09:20:00'
-);
--- Tests end.
-
-
 -- 2) Написать процедуру добавления проверки Verter'ом
 -- Параметры: ник проверяемого, название задания, статус проверки Verter'ом, время.
 -- Добавить запись в таблицу Verter (в качестве проверки указать проверку соответствующего задания с самым поздним (по времени) успешным P2P этапом)
@@ -72,22 +53,6 @@ BEGIN
         VALUES (id_check, verterState, checkTime);
     END
 $$ LANGUAGE plpgsql;
-
--- Tests start.
-CALL pr_verter_check (
-    'Bennett',
-    'C5_s21_decimal',
-    'Start',
-    '09:21:00'
-);
-
-CALL pr_verter_check (
-    'Bennett',
-    'C5_s21_decimal',
-    'Success',
-    '09:22:00'
-);
--- Tests end.
 
 -- Триггеры.
 
@@ -127,13 +92,6 @@ CREATE TRIGGER trg_transferred_points
 
 SELECT * FROM transferredpoints;
 
-CALL pr_p2p_check (
-    'Klee',
-    'Diluc',
-    'C3_s21_string+',
-    'Start',
-    '09:00:00'
-);
 
 -- 4) Написать триггер: перед добавлением записи в таблицу XP, проверить корректность добавляемой записи
 -- Запись считается корректной, если:
