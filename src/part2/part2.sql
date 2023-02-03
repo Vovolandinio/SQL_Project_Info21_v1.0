@@ -4,7 +4,6 @@
 -- Добавить запись в таблицу P2P.
 -- Если задан статус "начало", в качестве проверки указать только что добавленную запись, иначе указать проверку с незавершенным P2P этапом.
 
-
 CREATE or replace PROCEDURE pr_p2p_check (checked varchar,
 checking varchar,
 taskName varchar,
@@ -94,10 +93,12 @@ CALL pr_verter_check (
 
 -- 3) Написать триггер: после добавления записи со статутом "начало" в таблицу P2P, изменить соответствующую запись в таблице TransferredPoints
 
-drop FUNCTION fnc_transferred_points_after_p2p_start() CASCADE;
+DROP FUNCTION fnc_transferred_points_after_p2p_start() CASCADE;
 
 CREATE OR REPLACE FUNCTION fnc_transferred_points_after_p2p_start()
 RETURNS TRIGGER AS $tab$
+    DECLARE
+    transfer_id int := (SELECT max(id) FROM transferredpoints) + 1;
     BEGIN
         IF NEW.state = 'Start' THEN
 			WITH peers AS (SELECT DISTINCT
@@ -108,7 +109,8 @@ RETURNS TRIGGER AS $tab$
 			   GROUP BY p2p.checkingpeer, checkedpeer)
 
             UPDATE transferredpoints
-                SET pointsamount = transferredpoints.pointsamount + 1
+                SET pointsamount = transferredpoints.pointsamount + 1,
+                    id = transfer_id
                 FROM peers
                 WHERE transferredpoints.checkingpeer = peers.checkingpeer
                 AND transferredpoints.checkedpeer = peers.checkedpeer;
@@ -124,6 +126,14 @@ CREATE TRIGGER trg_transferred_points
 
 
 SELECT * FROM transferredpoints;
+
+CALL pr_p2p_check (
+    'Klee',
+    'Diluc',
+    'C3_s21_string+',
+    'Start',
+    '09:00:00'
+);
 
 -- 4) Написать триггер: перед добавлением записи в таблицу XP, проверить корректность добавляемой записи
 -- Запись считается корректной, если:
