@@ -298,7 +298,7 @@ END;
 DROP FUNCTION IF EXISTS fnc_successful_checks_last_task;
 
 CREATE or replace FUNCTION fnc_successful_checks_last_task(mytask varchar)
-RETURNS TABLE(peer varchar, "date" date)
+RETURNS TABLE(Peer varchar, Day date)
     AS $tab$
     BEGIN
         return query
@@ -316,7 +316,7 @@ WITH tasks_current_block AS (SELECT *
                         GROUP BY checks.id)
 
             SELECT dosc.peer AS Peer,
-                   dosc."Date" AS Date
+                   dosc."Date" AS Day
             FROM date_of_successful_check dosc INNER JOIN last_task ON dosc.task = last_task.title;
     END
 $tab$ LANGUAGE plpgsql;
@@ -328,29 +328,29 @@ SELECT * FROM fnc_successful_checks_last_task('C');
 -- Определять нужно исходя из рекомендаций друзей пира, т.е. нужно найти пира, проверяться у которого рекомендует наибольшее число друзей.
 -- Формат вывода: ник пира, ник найденного проверяющего
 
-DROP FUNCTION IF EXISTS pr_recommendation_peer(IN checking_peer varchar, OUT checked_peer varchar);
+DROP FUNCTION IF EXISTS pr_recommendation_peer(IN Peer varchar, OUT recommendedpeer varchar);
 
 CREATE OR REPLACE FUNCTION pr_recommendation_peer(IN checking_peer varchar)
-RETURNS TABLE(checking varchar, recommended varchar)
+RETURNS TABLE(Peer varchar, RecommendedPeer varchar)
     AS $$
     BEGIN
     RETURN QUERY
             WITH find_friends AS (SELECT friends.peer2
                                    FROM friends
                                    WHERE friends.peer1 NOT LIKE checking_peer),
-                 recommended_peers AS (SELECT recommendations.recommendedpeer
+                 recommended_peers AS (SELECT recommendations.recommendedpeer AS rp
                                        FROM recommendations
                                        INNER JOIN find_friends ON recommendations.peer = find_friends.peer2
                                        WHERE recommendations.recommendedpeer NOT LIKE checking_peer),
-                 recommended_peer AS (SELECT recommended_peers.recommendedpeer,
+                 recommended_peer AS (SELECT recommended_peers.rp,
                                                COUNT(*)
                                         FROM recommended_peers
-                                        GROUP BY recommended_peers.recommendedpeer
+                                        GROUP BY recommended_peers.rp
                                         ORDER BY 2 DESC
                                         LIMIT 1)
                 SELECT (SELECT peers.nickname
                         FROM peers
-                        WHERE peers.nickname = checking_peer), (SELECT recommendedpeer FROM recommended_peer);
+                        WHERE peers.nickname = checking_peer), (SELECT rp AS RecommendedPeer FROM recommended_peer);
         END;
 $$
 LANGUAGE plpgsql;
@@ -370,8 +370,9 @@ SELECT * FROM pr_recommendation_peer('Klee');
 
 DROP function fnc_successful_checks_blocks(block1 varchar, block2 varchar);
 
+
 CREATE FUNCTION fnc_successful_checks_blocks(block1 varchar, block2 varchar)
-RETURNS TABLE(Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT, Started_no_one BIGINT)
+RETURNS TABLE(StartedBlock1 BIGINT, StartedBlock2 BIGINT, StartedBothBlocks BIGINT, DidntStartAnyBlock BIGINT)
     AS $$
     DECLARE
         count_peers int := (SELECT COUNT(peers.nickname)
@@ -404,10 +405,10 @@ RETURNS TABLE(Started_block1 BIGINT, Started_block2 BIGINT, Started_both BIGINT,
 
 
 
-        SELECT ((SELECT count_startedblock1::bigint FROM count_startedblock1) * 100/count_peers) AS count_startedblock1,
-               ((SELECT count_startedblock2::bigint FROM count_startedblock2) * 100/count_peers) AS Started_block2,
-               ((SELECT count_startedboth::bigint FROM count_startedboth) * 100/count_peers) AS Started_both,
-               ((SELECT count_peers-count_startedoneof::bigint FROM count_startedoneof) * 100/count_peers) AS Started_no_one;
+        SELECT ((SELECT count_startedblock1::bigint FROM count_startedblock1) * 100/count_peers) AS StartedBlock1,
+               ((SELECT count_startedblock2::bigint FROM count_startedblock2) * 100/count_peers) AS StartedBlock2,
+               ((SELECT count_startedboth::bigint FROM count_startedboth) * 100/count_peers) AS StartedBothBlocks,
+               ((SELECT count_peers-count_startedoneof::bigint FROM count_startedoneof) * 100/count_peers) AS DidntStartAnyBlock;
 
     END
 $$
@@ -818,7 +819,7 @@ SELECT * FROM fnc_interval(12);
 DROP FUNCTION IF EXISTS fnc_early_entry();
 
 CREATE FUNCTION fnc_early_entry()
-RETURNS TABLE(month int, count_all BIGINT, count_ea BIGINT) AS $$
+RETURNS TABLE(Month int, EarlyEntries BIGINT) AS $$
 BEGIN
     RETURN QUERY
     WITH peers_birthdays AS (SELECT nickname,
@@ -851,9 +852,8 @@ BEGIN
         FROM months LEFT JOIN entries_in_birth_month ON months."dateMonth" = entries_in_birth_month.date_month
         GROUP BY months."dateMonth")
 
-        SELECT count_all_entries."dateMonth",
-               count_all_entries.count_all,
-               count_early_entries.count_ea
+        SELECT count_all_entries."dateMonth" AS Month,
+               count_early_entries.count_ea AS EarlyEntries
         FROM count_all_entries INNER JOIN count_early_entries ON count_all_entries."dateMonth" = count_early_entries."dateMonth"
         ORDER BY 1;
 END
