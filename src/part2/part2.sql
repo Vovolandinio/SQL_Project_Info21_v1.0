@@ -135,10 +135,5 @@ CREATE TRIGGER trg_xp
     FOR EACH ROW
     EXECUTE PROCEDURE fnc_xp();
 
-INSERT INTO xp("Check", xpamount)
-VALUES(12, 750);
-
-SELECT *
-FROM xp;
 
 DROP PROCEDURE IF EXISTS fnc_xp();
