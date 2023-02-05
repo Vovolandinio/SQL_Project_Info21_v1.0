@@ -66,11 +66,9 @@ DROP FUNCTION fnc_transferred_points_after_p2p_start() CASCADE;
 
 CREATE OR REPLACE FUNCTION fnc_transferred_points_after_p2p_start()
 RETURNS TRIGGER AS $tab$
-    DECLARE
-    transfer_id int := (SELECT max(id) FROM transferredpoints) + 1;
     BEGIN
         IF NEW.state = 'Start' THEN
-			WITH peers AS (SELECT DISTINCT
+			WITH peers2 AS (SELECT DISTINCT
 		  		NEW.checkingpeer,
 		  		checks.peer as checkedpeer
 			   FROM p2p
@@ -79,14 +77,14 @@ RETURNS TRIGGER AS $tab$
 
             UPDATE transferredpoints
                 SET pointsamount = transferredpoints.pointsamount + 1,
-                    id = transfer_id
-                FROM peers
-                WHERE transferredpoints.checkingpeer = peers.checkingpeer
-                AND transferredpoints.checkedpeer = peers.checkedpeer;
+                    id = transferredpoints.id
+                FROM peers2
+                WHERE transferredpoints.checkingpeer = peers2.checkingpeer
+                AND transferredpoints.checkedpeer = peers2.checkedpeer;
 			RETURN NEW;
-			ELSE
-           RAISE NOTICE 'ok';
-    END IF;
+        ELSE
+           RETURN NULL;
+        END IF;
 END;
 $tab$ LANGUAGE plpgsql;
 
@@ -96,7 +94,8 @@ CREATE TRIGGER trg_transferred_points
     EXECUTE PROCEDURE fnc_transferred_points_after_p2p_start();
 
 
-SELECT * FROM transferredpoints;
+SELECT * FROM transferredpoints
+ORDER BY 1;
 
 
 -- 4) Написать триггер: перед добавлением записи в таблицу XP, проверить корректность добавляемой записи
