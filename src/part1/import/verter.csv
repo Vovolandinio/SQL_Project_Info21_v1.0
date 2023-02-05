@@ -17,3 +17,5 @@ id,Check,state,Time
 16,8,Success,18:33:00
 17,9,Start,15:31:00
 18,9,Success,15:33:00
+19,12,Start,14:30:00
+20,12,Failure,14:33:00
