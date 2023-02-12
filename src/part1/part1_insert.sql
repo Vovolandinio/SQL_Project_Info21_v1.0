@@ -19,10 +19,10 @@ VALUES ('C2_SimpleBashUtils', NULL, 250),
        ('CPP1_s21_matrix+', 'C8_3DViewer_v1.0', 300),
        ('CPP2_s21_containers', 'CPP1_s21_matrix+', 350),
        ('D01_Linux', 'C2_SimpleBashUtils', 300),
-       ('DO2_Linux_Network','D01_Linux', 250),
-       ('DO3_Linux_Monitoring','DO2_Linux_Network', 350),
-       ('DO5_SimpleDocker','DO3_Linux_Monitoring', 300),
-       ('DO6_CI/CD','DO5_SimpleDocker', 300);
+       ('DO2_Linux_Network', 'D01_Linux', 250),
+       ('DO3_Linux_Monitoring', 'DO2_Linux_Network', 350),
+       ('DO5_SimpleDocker', 'DO3_Linux_Monitoring', 300),
+       ('DO6_CI/CD', 'DO5_SimpleDocker', 300);
 
 
 
@@ -92,16 +92,16 @@ VALUES (0, 'Start', '12:31'),
        (6, 'Success', '10:45'),
 
        (7, 'Start', '12:31'),
-       (7, 'Success','12:33'),
+       (7, 'Success', '12:33'),
 
        (8, 'Start', '18:31'),
-       (8, 'Success','18:33'),
+       (8, 'Success', '18:33'),
 
        (9, 'Start', '15:31'),
-       (9, 'Success','15:33'),
+       (9, 'Success', '15:33'),
 
-       (12,'Start','14:30'),
-       (12,'Failure','14:33');
+       (12, 'Start', '14:30'),
+       (12, 'Failure', '14:33');
 
 
 INSERT INTO TransferredPoints (CheckingPeer, CheckedPeer, PointsAmount)
@@ -130,18 +130,18 @@ VALUES ('Diluc', 'Bennett'),
 
 INSERT INTO Recommendations (Peer, RecommendedPeer)
 VALUES ('Diluc', 'Bennett'),
-      ('Bennett', 'Diluc'),
-      ('Bennett', 'Dori'),
-      ('Dori', 'Keqing'),
-      ('Keqing', 'Diluc'),
-      ('Zhongli', 'Klee'),
-      ('Diluc', 'Raiden'),
-      ('Klee', 'Diluc'),
-      ('Diluc', 'Klee'),
-      ('Klee', 'Zhongli'),
-      ('Dori', 'Bennett'),
-      ('Keqing', 'Dori'),
-      ('Raiden', 'Diluc');
+       ('Bennett', 'Diluc'),
+       ('Bennett', 'Dori'),
+       ('Dori', 'Keqing'),
+       ('Keqing', 'Diluc'),
+       ('Zhongli', 'Klee'),
+       ('Diluc', 'Raiden'),
+       ('Klee', 'Diluc'),
+       ('Diluc', 'Klee'),
+       ('Klee', 'Zhongli'),
+       ('Dori', 'Bennett'),
+       ('Keqing', 'Dori'),
+       ('Raiden', 'Diluc');
 
 INSERT INTO XP ("Check", XPAmount)
 VALUES (0, 250),
